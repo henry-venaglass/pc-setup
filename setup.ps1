@@ -410,7 +410,7 @@ if (-not $winget) {
         Write-Host "    Installing $($pkg.Name)..."
         # Drop --scope machine: some packages only support user-scope and silently
         # reject machine-scope. Letting winget pick the right scope is more reliable.
-        $output = winget install --id $pkg.Id --silent --accept-package-agreements --accept-source-agreements 2>&1
+        $output = winget install --id $pkg.Id --source winget --silent --accept-package-agreements --accept-source-agreements 2>&1
         $exitCode = $LASTEXITCODE
 
         # winget returns:
@@ -429,7 +429,7 @@ if (-not $winget) {
         Write-OK "All winget installs succeeded"
     } else {
         Write-Warn "These packages failed to install: $($failedInstalls -join ', ')"
-        Write-Warn "You will need to install them manually with: winget install <PackageId>"
+        Write-Warn "You will need to install them manually with: winget install --source winget --id <PackageId>"
     }
 
     # TightVNC needs special handling - we want SERVER ONLY, not the viewer.
@@ -463,7 +463,7 @@ if (-not $winget) {
     } catch {
         Write-Warn "TightVNC download/install failed: $_"
         Write-Warn "Fallback: installing via winget (will include viewer)"
-        winget install --id GlavSoft.TightVNC --silent --accept-package-agreements --accept-source-agreements
+        winget install --id GlavSoft.TightVNC --source winget --silent --accept-package-agreements --accept-source-agreements
     } finally {
         Remove-Item $tightVncMsi -ErrorAction SilentlyContinue
     }
@@ -723,7 +723,7 @@ Write-Step "Setting up auto-hide for mouse cursor"
 $ahkInstalled = $false
 if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "    Installing AutoHotkey..."
-    winget install --id AutoHotkey.AutoHotkey --silent --accept-package-agreements --accept-source-agreements | Out-Null
+    winget install --id AutoHotkey.AutoHotkey --source winget --silent --accept-package-agreements --accept-source-agreements | Out-Null
     Start-Sleep -Seconds 2  # give it a moment to finish writing files
 }
 
