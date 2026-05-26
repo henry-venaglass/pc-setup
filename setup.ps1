@@ -30,15 +30,6 @@ $HollyPassword     = "holly"   # Password for the Holly user
 $TightVNCPassword  = "holly"   # VNC connection password (max 8 chars for legacy clients)
 $NewHostname       = "HOLLY-$PCNumber"
 
-# ----- App auto-launch -----
-# Set the command to run on login. Leave $AppLaunchCommand empty to skip auto-start.
-# Examples:
-#   C:\code\holly-app\app.exe
-#   C:\Users\holly\AppData\Roaming\uv\python\cpython-3.13\python.exe C:\code\holly-app\main.py
-$AppLaunchCommand  = ""                            # Full path to .exe OR "python path-to-script.py"
-$AppWorkingDir     = "C:\code"                     # Where to run from (cwd for the app)
-$AppAutoRestart    = $true                         # Restart the app if it crashes/exits
-
 # ----- Tailscale -----
 #
 # Tailscale uses TAGGED DEVICES for fleet PCs - the device is owned by a tag
@@ -306,6 +297,10 @@ powercfg /change hibernate-timeout-dc 0
 powercfg /hibernate off
 Write-OK "Power configured"
 
+# ============================================================================
+# 7. NETWORK - WIFI OFF, BLUETOOTH OFF (done LAST so we keep ethernet during install)
+# ============================================================================
+# Actually we defer this to the very end - see bottom of script
 
 # ============================================================================
 # 8. APPEARANCE - DARK MODE, SOLID BG, HIDE DESKTOP ICONS
@@ -391,6 +386,7 @@ if (-not $winget) {
         @{ Id = "tailscale.tailscale";   Name = "Tailscale" }
         @{ Id = "OBSProject.OBSStudio";  Name = "OBS Studio" }
         @{ Id = "Git.Git";               Name = "Git" }
+        @{ Id = "Microsoft.VisualStudioCode"; Name = "VS Code" }
     )
 
     foreach ($pkg in $packages) {
@@ -462,7 +458,6 @@ if (Test-Path $vncPath) {
 # ============================================================================
 Write-Step "Creating C:\code directory"
 New-Item -Path "C:\code" -ItemType Directory -Force | Out-Null
-New-Item -Path "C:\code\logs" -ItemType Directory -Force | Out-Null
 Write-OK "C:\code ready (clone your repo here manually)"
 
 # ============================================================================
@@ -502,7 +497,37 @@ Set-ItemProperty -Path $cloudContent -Name "DisableSoftLanding"             -Val
 Write-OK "Notifications and lock screen disabled"
 
 # ============================================================================
-# 15. BULLETPROOFING - GUARANTEE ALWAYS-ON REMOTE ACCESS
+# 15. DISABLE CORTANA + STORAGE SENSE
+# ============================================================================
+# Cortana adds outbound traffic and Start menu latency - not useful for kiosks.
+# Storage Sense can auto-delete files when disk is low - we don't want surprises.
+Write-Step "Disabling Cortana and Storage Sense"
+
+# --- Disable Cortana ---
+$cortanaPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+if (-not (Test-Path $cortanaPolicy)) { New-Item -Path $cortanaPolicy -Force | Out-Null }
+Set-ItemProperty -Path $cortanaPolicy -Name "AllowCortana"               -Value 0 -Type DWord -Force
+Set-ItemProperty -Path $cortanaPolicy -Name "ConnectedSearchUseWeb"      -Value 0 -Type DWord -Force
+Set-ItemProperty -Path $cortanaPolicy -Name "AllowSearchToUseLocation"   -Value 0 -Type DWord -Force
+Set-ItemProperty -Path $cortanaPolicy -Name "DisableWebSearch"           -Value 1 -Type DWord -Force
+# Stop the search box from also searching the web from the Start menu
+$explorerPolicy = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
+if (-not (Test-Path $explorerPolicy)) { New-Item -Path $explorerPolicy -Force | Out-Null }
+Set-ItemProperty -Path $explorerPolicy -Name "BingSearchEnabled"         -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+Set-ItemProperty -Path $explorerPolicy -Name "CortanaConsent"            -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+
+# --- Disable Storage Sense ---
+# Storage Sense lives under HKCU per-user. Setting AllowStorageSenseGlobal to 0 disables it.
+$storageSenseUser   = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy"
+$storageSensePolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\StorageSense"
+if (-not (Test-Path $storageSenseUser))   { New-Item -Path $storageSenseUser   -Force | Out-Null }
+if (-not (Test-Path $storageSensePolicy)) { New-Item -Path $storageSensePolicy -Force | Out-Null }
+Set-ItemProperty -Path $storageSenseUser   -Name "01"                       -Value 0 -Type DWord -Force  # master switch off
+Set-ItemProperty -Path $storageSensePolicy -Name "AllowStorageSenseGlobal"  -Value 0 -Type DWord -Force  # enforce at machine level
+Write-OK "Cortana and Storage Sense disabled"
+
+# ============================================================================
+# 16. BULLETPROOFING - GUARANTEE ALWAYS-ON REMOTE ACCESS
 # ============================================================================
 # Belt-and-braces measures to ensure the PC stays reachable via Tailscale + VNC
 # no matter what. Each block here closes a different lockout escape route.
@@ -577,7 +602,7 @@ Set-ItemProperty -Path $personalization -Name "NoLockScreenSlideshow" -Value 1 -
 Write-OK "Bulletproofing applied - PC should stay reachable in all conditions"
 
 # ============================================================================
-# 16. DISABLE USB AUTORUN
+# 17. DISABLE USB AUTORUN
 # ============================================================================
 Write-Step "Disabling USB autorun/autoplay"
 $autoplay = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
@@ -587,7 +612,7 @@ Set-ItemProperty -Path $autoplay -Name "NoAutorun"          -Value 1    -Type DW
 Write-OK "Autorun disabled"
 
 # ============================================================================
-# 17. TIME SYNC - keep clock accurate for TLS / AWS API calls
+# 18. TIME SYNC - keep clock accurate for TLS / AWS API calls
 # ============================================================================
 Write-Step "Configuring Windows time service to sync regularly"
 Start-Service w32time -ErrorAction SilentlyContinue
@@ -597,7 +622,7 @@ Set-Service  w32time -StartupType Automatic
 Write-OK "Time sync configured"
 
 # ============================================================================
-# 18. HIDE MOUSE CURSOR WHEN IDLE
+# 19. HIDE MOUSE CURSOR WHEN IDLE
 # ============================================================================
 Write-Step "Setting up auto-hide for mouse cursor"
 # Strategy: install a small AutoHotkey v2 script that hides the cursor after 3s idle.
@@ -668,7 +693,7 @@ if (Test-Path $hollyStartup) {
 }
 
 # ============================================================================
-# 19. TAILSCALE AUTO-CONNECT (if auth key provided)
+# 20. TAILSCALE AUTO-CONNECT (if auth key provided)
 # ============================================================================
 if ($TailscaleAuthKey) {
     Write-Step "Connecting Tailscale with auth key"
@@ -683,56 +708,6 @@ if ($TailscaleAuthKey) {
     }
 } else {
     Write-Warn "No Tailscale auth key provided - you'll need to sign in manually on each PC"
-}
-
-# ============================================================================
-# 20. AUTO-LAUNCH THE HOLLY APP ON LOGIN
-# ============================================================================
-if ($AppLaunchCommand) {
-    Write-Step "Setting up app auto-launch on login"
-
-    # We use a wrapper .bat that handles restart-on-crash, then put a shortcut to that
-    # in Holly's Startup folder. This way the app comes back if it dies, and we get logs.
-
-    $wrapperPath = "C:\code\launch-holly-app.bat"
-    if ($AppAutoRestart) {
-        $wrapper = @"
-@echo off
-REM Auto-restart wrapper for the Holly app. Logs to C:\code\logs.
-cd /d "$AppWorkingDir"
-:loop
-echo [%date% %time%] Starting app >> C:\code\logs\app-launcher.log
-$AppLaunchCommand >> C:\code\logs\app-output.log 2>&1
-echo [%date% %time%] App exited with code %errorlevel% >> C:\code\logs\app-launcher.log
-timeout /t 5 /nobreak >nul
-goto loop
-"@
-    } else {
-        $wrapper = @"
-@echo off
-cd /d "$AppWorkingDir"
-$AppLaunchCommand >> C:\code\logs\app-output.log 2>&1
-"@
-    }
-    $wrapper | Out-File -FilePath $wrapperPath -Encoding ASCII -Force
-
-    # Create shortcut in holly's Startup folder, with window minimised so .bat doesn't flash on screen
-    $hollyStartup = "C:\Users\holly\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-    if (Test-Path $hollyStartup) {
-        $shortcutPath = "$hollyStartup\HollyApp.lnk"
-        $shell = New-Object -ComObject WScript.Shell
-        $sc = $shell.CreateShortcut($shortcutPath)
-        $sc.TargetPath = $wrapperPath
-        $sc.WorkingDirectory = $AppWorkingDir
-        $sc.WindowStyle = 7   # 7 = minimised, 1 = normal, 3 = maximised
-        $sc.Save()
-        Write-OK "App will auto-launch on holly login: $AppLaunchCommand"
-        if ($AppAutoRestart) { Write-OK "App will auto-restart if it crashes" }
-    } else {
-        Write-Warn "holly's Startup folder not found - copy $wrapperPath shortcut there manually after first login"
-    }
-} else {
-    Write-Warn "No app launch command set - skipping auto-start (configure `$AppLaunchCommand` in script header)"
 }
 
 # ============================================================================
@@ -768,12 +743,8 @@ if (-not $TailscaleAuthKey) {
     Write-Host "  4. Sign in to Tailscale (run 'tailscale login' or use the GUI)" -ForegroundColor Yellow
 }
 Write-Host "  5. Open OBS once to set up the virtual camera" -ForegroundColor Yellow
-if ($AppLaunchCommand) {
-    Write-Host "  6. Verify the app auto-launches after next reboot (check C:\code\logs\)" -ForegroundColor Yellow
-}
 
 Stop-Transcript | Out-Null
 
 $reboot = Read-Host "`nReboot now? (y/n)"
 if ($reboot -eq "y") { Restart-Computer -Force }
-
