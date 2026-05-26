@@ -260,7 +260,17 @@ Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -ErrorA
 Remove-Item -Path "$env:PROGRAMDATA\Microsoft OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
 Get-ScheduledTask -TaskName "OneDrive*" -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue
 # Hide OneDrive from File Explorer navigation pane
-Set-ItemProperty -Path "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}" -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+# Use HKLM:\SOFTWARE\Classes\ instead of HKCR: because the HKCR PSDrive isn't
+# always available in PowerShell sessions (cause of the -Type error in earlier runs).
+$oneDriveClsid = "HKLM:\SOFTWARE\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+if (Test-Path $oneDriveClsid) {
+    Set-ItemProperty -Path $oneDriveClsid -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Force -ErrorAction SilentlyContinue
+}
+# Also do the 32-bit variant for safety on 64-bit Windows
+$oneDriveClsid32 = "HKLM:\SOFTWARE\WOW6432Node\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+if (Test-Path $oneDriveClsid32) {
+    Set-ItemProperty -Path $oneDriveClsid32 -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Force -ErrorAction SilentlyContinue
+}
 
 # ============================================================================
 # 5. WINDOWS UPDATE - DISABLE AUTO, SET ACTIVE HOURS
@@ -335,8 +345,13 @@ $search   = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search"
 Set-ItemProperty -Path $search   -Name "SearchboxTaskbarMode" -Value 0 -Type DWord -Force
 # Task view button off
 Set-ItemProperty -Path $advanced -Name "ShowTaskViewButton"   -Value 0 -Type DWord -Force
-# Widgets off (Win11)
-Set-ItemProperty -Path $advanced -Name "TaskbarDa"            -Value 0 -Type DWord -Force
+# Widgets off (Win11) - using Group Policy at HKLM because HKCU TaskbarDa
+# is protected by Windows 11 registry tamper protection and silently fails.
+$widgetsPolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
+if (-not (Test-Path $widgetsPolicy)) { New-Item -Path $widgetsPolicy -Force | Out-Null }
+Set-ItemProperty -Path $widgetsPolicy -Name "AllowNewsAndInterests" -Value 0 -Type DWord -Force
+# Also try the user-level toggle as belt-and-braces (may or may not work depending on Windows build)
+Set-ItemProperty -Path $advanced -Name "TaskbarDa" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 # Chat / Teams button off
 Set-ItemProperty -Path $advanced -Name "TaskbarMn"            -Value 0 -Type DWord -Force
 # Taskbar only on primary display (0=only main)
@@ -386,14 +401,36 @@ if (-not $winget) {
         @{ Id = "tailscale.tailscale";   Name = "Tailscale" }
         @{ Id = "OBSProject.OBSStudio";  Name = "OBS Studio" }
         @{ Id = "Git.Git";               Name = "Git" }
-        @{ Id = "Microsoft.VisualStudioCode"; Name = "VS Code" }
     )
+
+    # Track which installs failed so we can report at the end
+    $failedInstalls = @()
 
     foreach ($pkg in $packages) {
         Write-Host "    Installing $($pkg.Name)..."
-        winget install --id $pkg.Id --silent --accept-package-agreements --accept-source-agreements --scope machine
+        # Drop --scope machine: some packages only support user-scope and silently
+        # reject machine-scope. Letting winget pick the right scope is more reliable.
+        $output = winget install --id $pkg.Id --silent --accept-package-agreements --accept-source-agreements 2>&1
+        $exitCode = $LASTEXITCODE
+
+        # winget returns:
+        #   0          = success
+        #   -1978335189 (0x8A150011) = already installed (also fine)
+        # anything else = something went wrong
+        if ($exitCode -eq 0 -or $exitCode -eq -1978335189) {
+            Write-Host "      [OK]   $($pkg.Name)" -ForegroundColor Green
+        } else {
+            Write-Host "      [FAIL] $($pkg.Name) (exit code $exitCode)" -ForegroundColor Red
+            $failedInstalls += $pkg.Name
+        }
     }
-    Write-OK "winget installs complete"
+
+    if ($failedInstalls.Count -eq 0) {
+        Write-OK "All winget installs succeeded"
+    } else {
+        Write-Warn "These packages failed to install: $($failedInstalls -join ', ')"
+        Write-Warn "You will need to install them manually with: winget install <PackageId>"
+    }
 
     # TightVNC needs special handling - we want SERVER ONLY, not the viewer.
     # winget's TightVNC package installs both by default, so we download the MSI
@@ -403,54 +440,95 @@ if (-not $winget) {
     $tightVncMsi = "$env:TEMP\tightvnc-server.msi"
     try {
         Invoke-WebRequest -Uri $tightVncUrl -OutFile $tightVncMsi -UseBasicParsing
-        # ADDLOCAL=Server installs only the server component
-        # Skip viewer with REMOVE=Viewer to be extra explicit
-        # Run silently with /qn
-        Start-Process msiexec.exe -ArgumentList "/i", "`"$tightVncMsi`"", "/qn", "ADDLOCAL=Server", "SERVER_REGISTER_AS_SERVICE=1", "SERVER_ADD_FIREWALL_EXCEPTION=1", "SET_USEVNCAUTHENTICATION=1", "VALUE_OF_USEVNCAUTHENTICATION=1" -Wait
-        Write-OK "TightVNC server installed (viewer skipped)"
+        # ADDLOCAL=Server installs only the server component (no viewer)
+        # SET_USEVNCAUTHENTICATION + VALUE_OF_USEVNCAUTHENTICATION enables password auth
+        # SET_PASSWORD + VALUE_OF_PASSWORD sets the password during install (more reliable than tvnserver CLI later)
+        $msiArgs = @(
+            "/i", "`"$tightVncMsi`"",
+            "/qn",
+            "ADDLOCAL=Server",
+            "SERVER_REGISTER_AS_SERVICE=1",
+            "SERVER_ADD_FIREWALL_EXCEPTION=1",
+            "SET_USEVNCAUTHENTICATION=1",
+            "VALUE_OF_USEVNCAUTHENTICATION=1",
+            "SET_PASSWORD=1",
+            "VALUE_OF_PASSWORD=$TightVNCPassword"
+        )
+        $msiProc = Start-Process msiexec.exe -ArgumentList $msiArgs -Wait -PassThru
+        if ($msiProc.ExitCode -eq 0) {
+            Write-OK "TightVNC server installed with password (viewer skipped)"
+        } else {
+            Write-Warn "TightVNC MSI install returned exit code $($msiProc.ExitCode)"
+        }
     } catch {
         Write-Warn "TightVNC download/install failed: $_"
         Write-Warn "Fallback: installing via winget (will include viewer)"
-        winget install --id GlavSoft.TightVNC --silent --accept-package-agreements --accept-source-agreements --scope machine
+        winget install --id GlavSoft.TightVNC --silent --accept-package-agreements --accept-source-agreements
     } finally {
         Remove-Item $tightVncMsi -ErrorAction SilentlyContinue
-    }
-
-    # Refresh PATH so we can use uv immediately
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-    # Install Python 3.13 via uv
-    Write-Step "Installing Python 3.13 via uv"
-    $uv = Get-Command uv -ErrorAction SilentlyContinue
-    if ($uv) {
-        & uv python install 3.13
-        Write-OK "Python 3.13 installed"
-    } else {
-        Write-Warn "uv not found on PATH after install - run 'uv python install 3.13' manually after reboot"
     }
 }
 
 # ============================================================================
-# 12. TIGHTVNC CONFIG
+# 12. VERIFY TIGHTVNC PASSWORD IS SET (with retry)
 # ============================================================================
-Write-Step "Configuring TightVNC server"
-# TightVNC stores its server config in HKLM under WinVNC4 or tvnserver depending on version
+# Password is set during MSI install (more reliable than CLI), but verify it stuck.
+# If for any reason the install didn't take, fall back to the CLI approach with retries.
+Write-Step "Verifying TightVNC password is set"
+
+$tvn = "${env:ProgramFiles}\TightVNC\tvnserver.exe"
 $vncPath = "HKLM:\SOFTWARE\TightVNC\Server"
-if (Test-Path $vncPath) {
-    # Encode the password the way TightVNC expects (DES with a fixed key).
-    # Easier approach: use the tvnserver.exe command-line config.
-    $tvn = "${env:ProgramFiles}\TightVNC\tvnserver.exe"
-    if (Test-Path $tvn) {
-        # Stop the service, set password, restart
-        Stop-Service -Name "tvnserver" -ErrorAction SilentlyContinue
-        & $tvn -controlservice -setvncpassword $TightVNCPassword 2>$null
-        Start-Service -Name "tvnserver" -ErrorAction SilentlyContinue
-        Write-OK "TightVNC password set"
-    } else {
-        Write-Warn "tvnserver.exe not found - set VNC password manually"
-    }
+
+# Wait up to 30 seconds for the registry key to appear (post-install timing)
+$waited = 0
+while (-not (Test-Path $vncPath) -and $waited -lt 30) {
+    Start-Sleep -Seconds 2
+    $waited += 2
+}
+
+if (-not (Test-Path $vncPath)) {
+    Write-Warn "TightVNC registry key never appeared - service may not be installed correctly"
+} elseif (-not (Test-Path $tvn)) {
+    Write-Warn "tvnserver.exe not found - set VNC password manually via system tray"
 } else {
-    Write-Warn "TightVNC registry key not present yet - may need a reboot before configuring"
+    # Check if the Password value exists in the registry (set during MSI install).
+    # If empty/missing, fall back to CLI approach with retry-until-it-works.
+    $passwordSet = $false
+    try {
+        $pwBytes = (Get-ItemProperty -Path $vncPath -Name "Password" -ErrorAction Stop).Password
+        if ($pwBytes -and $pwBytes.Length -gt 0) { $passwordSet = $true }
+    } catch { $passwordSet = $false }
+
+    if ($passwordSet) {
+        Write-OK "TightVNC password already set by MSI install"
+    } else {
+        Write-Host "    Password not yet set, setting via CLI with retries..." -ForegroundColor DarkGray
+        $maxRetries = 5
+        for ($i = 1; $i -le $maxRetries; $i++) {
+            # Make sure the service is running before we try to talk to it
+            $svc = Get-Service -Name "tvnserver" -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -ne "Running") {
+                Start-Service -Name "tvnserver" -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
+            }
+            & $tvn -controlservice -setvncpassword $TightVNCPassword 2>$null
+            Start-Sleep -Seconds 2
+
+            # Verify it actually took
+            try {
+                $pwBytes = (Get-ItemProperty -Path $vncPath -Name "Password" -ErrorAction Stop).Password
+                if ($pwBytes -and $pwBytes.Length -gt 0) {
+                    Write-OK "TightVNC password set (attempt $i)"
+                    $passwordSet = $true
+                    break
+                }
+            } catch {}
+            Write-Host "      attempt $i failed, retrying..." -ForegroundColor DarkGray
+        }
+        if (-not $passwordSet) {
+            Write-Warn "Could not set TightVNC password automatically - set manually via system tray"
+        }
+    }
 }
 
 # ============================================================================
@@ -582,16 +660,27 @@ powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATACTIONCRIT 0
 powercfg /setactive SCHEME_CURRENT
 
 # --- 16g. Ensure Tailscale and TightVNC services are set to auto-start and restart on failure ---
-# These should be the default after install, but we explicitly enforce them.
+# Both should be installed by this point but Tailscale sometimes registers its service
+# slightly later than its install completes, so we retry with a wait for any missing ones.
 foreach ($svc in @("Tailscale", "tvnserver")) {
-    $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+    # Wait up to 30s for the service to appear (handles slow service registration after install)
+    $service = $null
+    $waited = 0
+    while (-not $service -and $waited -lt 30) {
+        $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+        if (-not $service) {
+            Start-Sleep -Seconds 3
+            $waited += 3
+        }
+    }
+
     if ($service) {
         Set-Service -Name $svc -StartupType Automatic
         # sc.exe failure action: restart after 5 seconds, on 1st/2nd/3rd failure, reset counter daily
         & sc.exe failure $svc reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
         Write-Host "      service: $svc -> auto-start, restart-on-failure" -ForegroundColor DarkGray
     } else {
-        Write-Host "      service: $svc -> not installed yet (will configure on first boot if needed)" -ForegroundColor DarkGray
+        Write-Host "      service: $svc -> not found after 30s wait (configure manually with: sc.exe failure $svc reset= 86400 actions= restart/5000/restart/5000/restart/5000)" -ForegroundColor Yellow
     }
 }
 

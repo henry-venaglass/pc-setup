@@ -34,13 +34,13 @@ Once you're at the desktop, plug in the ethernet cable.
 
 ## Step 3 — Run the setup script
 
-Plug in the USB stick. Copy `setup.ps1` from the USB to `C:\`.
+Get the script onto the PC — either plug in the USB stick, or download it from GitHub directly on the PC. Save it to the Downloads folder (`C:\Users\holly\Downloads`).
 
 Right-click the Start button and open **Terminal (Admin)**. Run these three commands, one at a time:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-cd C:\
+cd C:\Users\holly\Downloads
 .\setup.ps1 -PCNumber xxx
 ```
 
