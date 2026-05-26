@@ -1,0 +1,282 @@
+**********************
+Windows PowerShell transcript start
+Start time: 20260526151847
+Username: A5\holly
+RunAs User: A5\holly
+Configuration Name: 
+Machine: A5 (Microsoft Windows NT 10.0.26100.0)
+Host Application: C:\windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Process ID: 13904
+PSVersion: 5.1.26100.6899
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.6899
+BuildVersion: 10.0.26100.6899
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+=== Setting up HOLLY-002 ===
+
+>>> Renaming computer to HOLLY-002
+WARNING: The changes will take effect after you restart the computer A5.
+    [OK] Renamed (takes effect on reboot)
+
+>>> Configuring auto-login for Holly
+    [OK] Auto-login set for holly
+
+>>> Uninstalling Microsoft Store bloatware (AppX packages)
+    Removing 58 app packages...
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package 1527c705-839a-4832-9118-54d4Bd6a0c89_10.0.19640.1000_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.FilePicker_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    1527c705-839a-4832-9118-54d4Bd6a0c89
+      removed: Microsoft.MicrosoftEdge.Stable
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package c5e2524a-ea46-4f67-841f-6a9465d9d515_10.0.26100.1_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.FileExplorer_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    c5e2524a-ea46-4f67-841f-6a9465d9d515
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package E2A4F912-2574-4A75-9BB0-0D023378592B_10.0.19640.1000_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.AppResolverUX_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    E2A4F912-2574-4A75-9BB0-0D023378592B
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package F46D4000-FD22-4DB4-AC8E-4E1DDDE828FE_10.0.26100.1_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.AddSuggestedFoldersToLibraryDialog_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    F46D4000-FD22-4DB4-AC8E-4E1DDDE828FE
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package Microsoft.Windows.Apprep.ChxApp_1000.25128.1000.0_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    Microsoft.Windows.Apprep.ChxApp
+PS>TerminatingError(Remove-AppxPackage): "The package could not be installed because resources it modifies are currently in use.
+
+Error 0x80073D02: The request cannot be processed because package Microsoft.Windows.AugLoop.CBS_1.1126.2131.0_x64__8wekyb3d8bbwe is in use."
+      skip:    Microsoft.Windows.AugLoop.CBS
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package Microsoft.Windows.NarratorQuickStart_10.0.26100.1_neutral_neutral_8wekyb3d8bbwe from: C:\Windows\SystemApps\microsoft.windows.narratorquickstart_8wekyb3d8bbwe failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    Microsoft.Windows.NarratorQuickStart
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package Microsoft.Windows.PrintQueueActionCenter_1.0.2.0_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\Microsoft.Windows.PrintQueueActionCenter_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    Microsoft.Windows.PrintQueueActionCenter
+      removed: MicrosoftWindows.56978801.Voiess
+      removed: MicrosoftWindows.57058570.Speion
+      removed: MicrosoftWindows.57074914.Livtop
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.UndockedDevKit_10.0.26100.1_neutral_neutral_cw5n1h2txyewy from: C:\Windows\SystemApps\MicrosoftWindows.UndockedDevKit_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.UndockedDevKit
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package windows.immersivecontrolpanel_10.0.8.1000_neutral_neutral_cw5n1h2txyewy from: C:\Windows\ImmersiveControlPanel failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    windows.immersivecontrolpanel
+      removed: Clipchamp.Clipchamp
+      removed: Microsoft.ApplicationCompatibilityEnhancements
+      removed: Microsoft.AVCEncoderVideoExtension
+      removed: Microsoft.BingNews
+      removed: Microsoft.MPEG2VideoExtension
+      removed: Microsoft.PowerAutomateDesktop
+      removed: Microsoft.Windows.DevHome
+      removed: Microsoft.WindowsCamera
+      removed: Microsoft.XboxIdentityProvider
+      removed: Microsoft.XboxSpeechToTextOverlay
+      removed: MicrosoftWindows.CrossDevice
+      removed: Microsoft.BingWeather
+      removed: Microsoft.GamingApp
+      removed: Microsoft.GetHelp
+      removed: Microsoft.MicrosoftSolitaireCollection
+      removed: Microsoft.MicrosoftOfficeHub
+      removed: Microsoft.OutlookForWindows
+      removed: Microsoft.MicrosoftStickyNotes
+      removed: Microsoft.Todos
+      removed: Microsoft.WindowsAlarms
+      removed: Microsoft.Xbox.TCUI
+      removed: Microsoft.WindowsSoundRecorder
+      removed: Microsoft.XboxGamingOverlay
+      removed: Microsoft.YourPhone
+      removed: Microsoft.ZuneMusic
+      removed: MicrosoftCorporationII.QuickAssist
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.58680125.Speion_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\SxS\MicrosoftWindows.58680125.Speion_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.58680125.Speion
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.58681517.Voiess_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\SxS\MicrosoftWindows.58681517.Voiess_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.58681517.Voiess
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.58681560.Livtop_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\SxS\MicrosoftWindows.58681560.Livtop_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.58681560.Livtop
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.58683691.InpApp_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\SxS\MicrosoftWindows.58683691.InpApp_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.58683691.InpApp
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.54792954.Filons_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\SxS\MicrosoftWindows.54792954.Filons_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.54792954.Filons
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.Client.CoreAI_1000.26100.6899.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.Client.CoreAI
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.Client.Core_1000.26100.79.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.Core_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.Client.Core
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.Client.FileExp_1000.26100.4.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.FileExp_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.Client.FileExp
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.Client.OOBE_1000.26100.20.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.OOBE_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.Client.OOBE
+PS>TerminatingError(Remove-AppxPackage): "The request is not supported.
+
+error 0x80070032: AppX Deployment Remove operation on package MicrosoftWindows.Client.Photon_1000.26100.10.0_x64__cw5n1h2txyewy from: C:\WINDOWS\SystemApps\MicrosoftWindows.Client.Photon_cw5n1h2txyewy failed. This app is part of Windows and cannot be uninstalled on a per-user basis. An administrator can attempt to remove the app from the computer using Turn Windows Features on or off. However, it may not be possible to uninstall the app."
+      skip:    MicrosoftWindows.Client.Photon
+      removed: Microsoft.BingSearch
+      removed: AdvancedMicroDevicesInc-RSXCM
+      removed: Microsoft.WidgetsPlatformRuntime
+      removed: MSTeams
+      removed: Microsoft.Windows.Photos
+      removed: Microsoft.Edge.GameAssist
+      removed: MicrosoftCorporationII.WinAppRuntime.Main.1.8
+      removed: Microsoft.StartExperiencesApp
+
+>>> Removing provisioned app packages (stops them coming back for new users)
+    [OK] AppX cleanup done
+
+>>> Removing OneDrive
+    [OK] OneDrive uninstalled
+PS>TerminatingError(Set-ItemProperty): "A parameter cannot be found that matches parameter name 'Type'."
+Set-ItemProperty : A parameter cannot be found that matches parameter name 'Type'.
+At C:\Users\holly\Downloads\setup.ps1:263 char:125
++ ... D1FE6}" -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord - ...
++                                                             ~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-ItemProperty], ParameterBindingException
+    + FullyQualifiedErrorId : NamedParameterNotFound,Microsoft.PowerShell.Commands.SetItemPropertyCommand
+Set-ItemProperty : A parameter cannot be found that matches parameter name 'Type'.
+At C:\Users\holly\Downloads\setup.ps1:263 char:125
++ ... D1FE6}" -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord - ...
++                                                             ~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-ItemProperty], ParameterBindingException
+    + FullyQualifiedErrorId : NamedParameterNotFound,Microsoft.PowerShell.Commands.SetItemPropertyCommand
+
+
+>>> Configuring Windows Update (no auto-restart, active hours 06:00-22:00)
+    [OK] Update policy set
+
+>>> Setting power plan to never sleep / never screen off
+
+
+
+
+
+
+
+
+
+    [OK] Power configured
+
+>>> Dark mode + solid black background + hide desktop icons
+    [OK] Appearance set
+
+>>> Configuring taskbar
+Set-ItemProperty : Attempted to perform an unauthorized operation.
+At C:\Users\holly\Downloads\setup.ps1:339 char:1
++ Set-ItemProperty -Path $advanced -Name "TaskbarDa"            -Value  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : PermissionDenied: (TaskbarDa:String) [Set-ItemProperty], UnauthorizedAccessException
+    + FullyQualifiedErrorId : System.UnauthorizedAccessException,Microsoft.PowerShell.Commands.SetItemPropertyCommand
+Set-ItemProperty : Attempted to perform an unauthorized operation.
+At C:\Users\holly\Downloads\setup.ps1:339 char:1
++ Set-ItemProperty -Path $advanced -Name "TaskbarDa"            -Value  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : PermissionDenied: (TaskbarDa:String) [Set-ItemProperty], UnauthorizedAccessException
+    + FullyQualifiedErrorId : System.UnauthorizedAccessException,Microsoft.PowerShell.Commands.SetItemPropertyCommand
+
+    [OK] Taskbar configured
+
+>>> Hardening Edge (no signin, no sync, no first-run experience)
+    [OK] Edge locked down
+
+>>> Installing apps via winget
+    Installing uv (Python manager)...
+
+    Installing Tailscale...
+
+    Installing OBS Studio...
+
+    Installing Git...
+
+    Installing VS Code...
+
+    [OK] winget installs complete
+
+>>> Installing TightVNC server (server only, no viewer)
+    [OK] TightVNC server installed (viewer skipped)
+
+>>> Installing Python 3.13 via uv
+    [WARN] uv not found on PATH after install - run 'uv python install 3.13' manually after reboot
+
+>>> Configuring TightVNC server
+    [OK] TightVNC password set
+
+>>> Creating C:\code directory
+    [OK] C:\code ready (clone your repo here manually)
+
+>>> Disabling lock screen and all notifications (kiosk mode)
+    [OK] Notifications and lock screen disabled
+
+>>> Disabling Cortana and Storage Sense
+    [OK] Cortana and Storage Sense disabled
+
+>>> Bulletproofing remote access (lock prevention + service reliability)
+
+
+
+
+
+
+
+
+
+      service: Tailscale -> not installed yet (will configure on first boot if needed)
+      service: tvnserver -> auto-start, restart-on-failure
+    [OK] Bulletproofing applied - PC should stay reachable in all conditions
+
+>>> Disabling USB autorun/autoplay
+    [OK] Autorun disabled
+
+>>> Configuring Windows time service to sync regularly
+    [OK] Time sync configured
+
+>>> Setting up auto-hide for mouse cursor
+    [OK] Cursor auto-hide installed (will activate after reboot)
+    [WARN] No Tailscale auth key provided - you'll need to sign in manually on each PC
+
+>>> Disabling Wi-Fi and Bluetooth adapters
+      disabled: Wi-Fi
+      disabled: Microsoft Bluetooth Enumerator
+      disabled: Microsoft Bluetooth LE Enumerator
+      disabled: Realtek Bluetooth Adapter
+      disabled: Bluetooth Device (RFCOMM Protocol TDI)
+    [OK] Wireless disabled
+
+>>> Restarting Explorer to apply UI changes
+
+=== Setup complete for HOLLY-002 ===
+Manual steps remaining:
+  1. Reboot now (hostname change requires it)
+  2. After reboot, plug in ethernet and run Windows Update manually
+  3. Clone your git repo into C:\code
+  4. Sign in to Tailscale (run 'tailscale login' or use the GUI)
+  5. Open OBS once to set up the virtual camera
+**********************
+Windows PowerShell transcript end
+End time: 20260526152005
+**********************
