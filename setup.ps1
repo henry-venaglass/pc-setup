@@ -714,12 +714,32 @@ Write-OK "Time sync configured"
 # 19. HIDE MOUSE CURSOR WHEN IDLE
 # ============================================================================
 Write-Step "Setting up auto-hide for mouse cursor"
-# Strategy: install a small AutoHotkey v2 script that hides the cursor after 3s idle.
-# AHK is the most reliable Windows way to do this without paid utilities.
-# We install it via winget, then drop a script in Startup folder.
+# Strategy: install AutoHotkey v2 + drop the script in C:\code, then create a
+# Startup shortcut that explicitly invokes AutoHotkey64.exe with the script as
+# an argument. We do NOT rely on the .ahk file association — Windows often fails
+# to register that during silent installs, which causes the "How do you want to
+# open this file?" dialog on every boot.
 
+$ahkInstalled = $false
 if (Get-Command winget -ErrorAction SilentlyContinue) {
-    winget install --id AutoHotkey.AutoHotkey --silent --accept-package-agreements --accept-source-agreements --scope machine | Out-Null
+    Write-Host "    Installing AutoHotkey..."
+    winget install --id AutoHotkey.AutoHotkey --silent --accept-package-agreements --accept-source-agreements | Out-Null
+    Start-Sleep -Seconds 2  # give it a moment to finish writing files
+}
+
+# Locate AutoHotkey64.exe - winget may install to either of these paths depending on scope
+$ahkExeCandidates = @(
+    "${env:ProgramFiles}\AutoHotkey\v2\AutoHotkey64.exe",
+    "${env:ProgramFiles}\AutoHotkey\AutoHotkey64.exe",
+    "${env:LOCALAPPDATA}\Programs\AutoHotkey\v2\AutoHotkey64.exe",
+    "$env:USERPROFILE\AppData\Local\Programs\AutoHotkey\v2\AutoHotkey64.exe"
+)
+$ahkExe = $ahkExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($ahkExe) {
+    $ahkInstalled = $true
+    Write-Host "      Found AutoHotkey at: $ahkExe" -ForegroundColor DarkGray
+} else {
+    Write-Warn "AutoHotkey64.exe not found after install - cursor auto-hide will not work"
 }
 
 $ahkScript = @'
@@ -772,13 +792,48 @@ SystemCursor(cmd) {
 $ahkPath = "C:\code\hide-cursor.ahk"
 $ahkScript | Out-File -FilePath $ahkPath -Encoding UTF8 -Force
 
-# Add to holly's Startup folder so it runs on every login
+# Put a SHORTCUT in holly's Startup folder, not the .ahk file directly.
+# The shortcut explicitly invokes AutoHotkey64.exe with the script path as an argument,
+# which works regardless of whether .ahk files are properly associated.
 $hollyStartup = "C:\Users\holly\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-if (Test-Path $hollyStartup) {
-    Copy-Item -Path $ahkPath -Destination "$hollyStartup\hide-cursor.ahk" -Force
-    Write-OK "Cursor auto-hide installed (will activate after reboot)"
+if (-not (Test-Path $hollyStartup)) {
+    Write-Warn "holly's Startup folder not found - profile may not exist yet. Re-run after first holly login."
+} elseif (-not $ahkInstalled) {
+    Write-Warn "AutoHotkey not installed - skipping cursor auto-hide setup"
 } else {
-    Write-Warn "holly's Startup folder not found - profile may not be created yet. Re-run after first holly login, or copy $ahkPath to her Startup folder manually."
+    # Remove any old .ahk file that may have been dropped here by a previous script version
+    $oldDirectPath = "$hollyStartup\hide-cursor.ahk"
+    if (Test-Path $oldDirectPath) {
+        Remove-Item $oldDirectPath -Force -ErrorAction SilentlyContinue
+        Write-Host "      Removed old hide-cursor.ahk from Startup (replacing with shortcut)" -ForegroundColor DarkGray
+    }
+
+    # Create the shortcut: target = AutoHotkey64.exe, arguments = path to script
+    $shortcutPath = "$hollyStartup\hide-cursor.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $sc = $shell.CreateShortcut($shortcutPath)
+    $sc.TargetPath = $ahkExe
+    $sc.Arguments = "`"$ahkPath`""
+    $sc.WorkingDirectory = "C:\code"
+    $sc.WindowStyle = 7   # 7 = minimised - no console flash
+    $sc.Description = "Auto-hide cursor when idle"
+    $sc.Save()
+    Write-OK "Cursor auto-hide installed (shortcut in Startup - no file association needed)"
+}
+
+# Also fix the .ahk file association globally as belt-and-braces, in case anything else
+# tries to open .ahk files later. This sets the default app for .ahk files to AutoHotkey64.exe.
+if ($ahkInstalled) {
+    $ahkFileAssoc = "HKLM:\SOFTWARE\Classes\.ahk"
+    $ahkClassAssoc = "HKLM:\SOFTWARE\Classes\AutoHotkeyScript\shell\open\command"
+    try {
+        if (-not (Test-Path $ahkFileAssoc)) { New-Item -Path $ahkFileAssoc -Force | Out-Null }
+        Set-ItemProperty -Path $ahkFileAssoc -Name "(Default)" -Value "AutoHotkeyScript" -Force
+        if (-not (Test-Path $ahkClassAssoc)) { New-Item -Path $ahkClassAssoc -Force | Out-Null }
+        Set-ItemProperty -Path $ahkClassAssoc -Name "(Default)" -Value "`"$ahkExe`" `"%1`"" -Force
+    } catch {
+        # Non-fatal - the shortcut approach above doesn't need this to work
+    }
 }
 
 # ============================================================================
