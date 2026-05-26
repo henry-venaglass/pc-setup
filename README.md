@@ -7,7 +7,7 @@ Automated setup script for new Holly NUC PCs. Run after Windows OOBE to debloat 
 You'll need:
 
 - The NUC, with power, monitor, keyboard, mouse, and ethernet cable
-- USB stick containing `Setup-HollyPC.ps1` (passwords and Tailscale auth key already filled in)
+- USB stick containing `setup.ps1` (passwords and Tailscale auth key already filled in)
 - The PC number for this machine (e.g. `001`, `002`, `003`)
 - A label maker
 
@@ -34,14 +34,14 @@ Once you're at the desktop, plug in the ethernet cable.
 
 ## Step 3 — Run the setup script
 
-Plug in the USB stick. Copy `Setup-HollyPC.ps1` from the USB to `C:\`.
+Plug in the USB stick. Copy `setup.ps1` from the USB to `C:\`.
 
 Right-click the Start button and open **Terminal (Admin)**. Run these three commands, one at a time:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\
-.\Setup-HollyPC.ps1 -PCNumber xxx
+.\setup.ps1 -PCNumber xxx
 ```
 
 Replace `xxx` with this PC's number (`001`, `002`, etc.). The script takes 15–30 minutes. When it asks to reboot, say yes.
