@@ -41,10 +41,10 @@ Right-click the Start button and open **Terminal (Admin)**. Run these three comm
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\Users\holly\Downloads
-.\setup.ps1 -PCNumber xxx
+.\setup.ps1 -PCNumber xxx -AuthKey "tskey-auth-..."
 ```
 
-Replace `xxx` with this PC's number (`001`, `002`, etc.). The script takes 15–30 minutes. When it asks to reboot, say yes.
+Replace `xxx` with this PC's number (`001`, `002`, etc.) and `tskey-auth-...` with the Tailscale auth key. The script takes 15–30 minutes. When it asks to reboot, say yes.
 
 ## Step 4 — Run Windows Update
 
@@ -107,4 +107,4 @@ Print a label with this PC's name (e.g. `HOLLY-001`) and stick it on the bottom 
 - [ ] OBS virtual camera is active
 - [ ] Wifi and Bluetooth disabled
 - [ ] Windows Update fully complete
-- [ ] PC is physically labeled with the coresponding name 'HOLLY-xxx'
+- [ ] PC is physically labeled with the corresponding name `HOLLY-xxx`

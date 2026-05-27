@@ -14,30 +14,42 @@
     2. Plug in ethernet.
     3. Open PowerShell AS ADMINISTRATOR.
     4. If script is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-    5. Run: .\Setup-HollyPC.ps1 -PCNumber 001
+    5. Run: .\Setup-HollyPC.ps1 -PCNumber 001 -AuthKey "tskey-auth-..."
+
+       (omit -AuthKey to install Tailscale but sign in manually later)
 
 .PARAMETER PCNumber
     Three-digit number for this PC, used in hostname HOLLY-NNN. e.g. "001", "002"
+
+.PARAMETER AuthKey
+    Optional. Tailscale auth key for unattended sign-in. Generate from:
+    https://login.tailscale.com/admin/settings/keys (reusable, pre-approved, tagged)
 #>
 
 param(
     [Parameter(Mandatory=$true)]
     [ValidatePattern('^\d{3}$')]
-    [string]$PCNumber
+    [string]$PCNumber,
+
+    [Parameter(Mandatory=$false)]
+    [string]$AuthKey = ""
 )
 
 # ============================================================================
 # CONFIG - edit these before running on the first PC
 # ============================================================================
-$HollyPassword     = "CHANGE_ME_BEFORE_RUNNING"   # Password for the Holly user (must match what was typed in OOBE)
-$TightVNCPassword  = "CHANGE_ME_BEFORE_RUNNING"   # VNC connection password (max 8 chars for legacy clients)
+$HollyPassword     = "holly"   # Password for the Holly user (must match what was typed in OOBE)
+$TightVNCPassword  = "holly"   # VNC connection password (max 8 chars for legacy clients)
 $NewHostname       = "HOLLY-$PCNumber"
 
 # ----- Tailscale -----
-# Tagged-device setup using a reusable auth key. See the explainer PDF for details
-# on the one-time tailnet ACL setup and how to generate the key with tag:holly-pc.
-# Leave empty to install Tailscale but sign in manually later.
-$TailscaleAuthKey  = ""                            # e.g. "tskey-auth-kXXXXXXXXXX-XXXXXXXXXX"
+# Auth key is passed as a script parameter rather than stored in the file, so the
+# script can live on GitHub / shared USB sticks without leaking tailnet credentials.
+# Generate a reusable, pre-approved, tagged auth key from:
+#   https://login.tailscale.com/admin/settings/keys
+# Then pass it via: -AuthKey "tskey-auth-..."
+# If you omit -AuthKey, the script will install Tailscale but you'll need to sign in manually.
+$TailscaleAuthKey  = $AuthKey
 
 # ============================================================================
 # PRE-FLIGHT
