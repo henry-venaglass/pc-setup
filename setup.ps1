@@ -307,10 +307,6 @@ powercfg /change hibernate-timeout-dc 0
 powercfg /hibernate off
 Write-OK "Power configured"
 
-# ============================================================================
-# 7. NETWORK - WIFI OFF, BLUETOOTH OFF (done LAST so we keep ethernet during install)
-# ============================================================================
-# Actually we defer this to the very end - see bottom of script
 
 # ============================================================================
 # 8. APPEARANCE - DARK MODE, SOLID BG, HIDE DESKTOP ICONS
