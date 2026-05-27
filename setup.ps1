@@ -563,7 +563,10 @@ Try-Step "Power buttons disabled (button/sleep/lid/critical battery)" {
     if ($LASTEXITCODE -ne 0) { throw "powercfg returned exit code $LASTEXITCODE" }
 }
 
-foreach ($svc in @("Tailscale", "tvnserver")) {
+# tvnserver service auto-restart. Tailscale's service config happens later in
+# section 19 (after `tailscale up` runs) - by then we know the daemon is alive
+# and registered, which avoids a false-positive warning.
+foreach ($svc in @("tvnserver")) {
     Try-Step "Service '$svc' set to auto-start with restart-on-failure" -WarnOnFail {
         $service = $null
         $waited = 0
@@ -695,7 +698,7 @@ Try-Step "Cursor auto-hide startup shortcut created" -WarnOnFail {
 }
 
 # ============================================================================
-# 19. TAILSCALE AUTO-CONNECT (if auth key provided)
+# 19. TAILSCALE AUTO-CONNECT (if auth key provided) + SERVICE CONFIG
 # ============================================================================
 if ($TailscaleAuthKey) {
     Write-Step "Connecting Tailscale with auth key"
@@ -708,6 +711,24 @@ if ($TailscaleAuthKey) {
 } else {
     Write-Step "Skipping Tailscale auto-connect (no auth key)"
     Record-Warn "Tailscale auth key not set - sign in manually: tailscale up --unattended --hostname=$NewHostname"
+}
+
+# Configure the Tailscale service for auto-restart-on-failure.
+# This runs here (not in section 15) because by this point the daemon has either
+# been signed in via auth key, or the install has had time to fully register its
+# service, so Get-Service won't return null and give a false negative.
+Write-Step "Configuring Tailscale service auto-restart"
+Try-Step "Service 'Tailscale' set to auto-start with restart-on-failure" -WarnOnFail {
+    $service = $null
+    $waited = 0
+    while (-not $service -and $waited -lt 30) {
+        $service = Get-Service -Name "Tailscale" -ErrorAction SilentlyContinue
+        if (-not $service) { Start-Sleep -Seconds 3; $waited += 3 }
+    }
+    if (-not $service) { throw "Tailscale service not found - daemon may not have installed correctly" }
+    Set-Service -Name "Tailscale" -StartupType Automatic -ErrorAction Stop
+    & sc.exe failure "Tailscale" reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "sc.exe failure returned exit code $LASTEXITCODE" }
 }
 
 # ============================================================================
