@@ -107,3 +107,4 @@ Print a label with this PC's name (e.g. `HOLLY-001`) and stick it on the bottom 
 - [ ] OBS virtual camera is active
 - [ ] Wifi and Bluetooth disabled
 - [ ] Windows Update fully complete
+- [ ] PC is physically labeled with the coresponding name 'HOLLY-xxx'
