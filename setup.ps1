@@ -32,7 +32,10 @@ param(
     [string]$PCNumber,
 
     [Parameter(Mandatory=$false)]
-    [string]$AuthKey = ""
+    [string]$AuthKey = "",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$Unattended
 )
 
 # ============================================================================
@@ -50,6 +53,14 @@ $NewHostname       = "HOLLY-$PCNumber"
 # Then pass it via: -AuthKey "tskey-auth-..."
 # If you omit -AuthKey, the script will install Tailscale but you'll need to sign in manually.
 $TailscaleAuthKey  = $AuthKey
+
+# ----- Deploy key (ADDED) -----
+# PUBLIC half of your Mac's SSH key (~/.ssh/fleet_deploy.pub). Safe to keep in this file -
+# public keys are not secret. It authorizes your Mac to push setup scripts and updates to
+# this NUC over the tailnet via SSH, so you never clone from GitHub on the device.
+# Generate on the Mac:  ssh-keygen -t ed25519 -f ~/.ssh/fleet_deploy -C "fleet-deploy"
+# then paste the one-line contents of fleet_deploy.pub below.
+$DeployPublicKey   = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
 
 # ============================================================================
 # PRE-FLIGHT
@@ -464,6 +475,72 @@ Try-Step "C:\code directory created" {
 }
 
 # ============================================================================
+# 12B. OPENSSH SERVER (ADDED) - enables push-based deploys from your Mac
+# ============================================================================
+# Installs the built-in Windows OpenSSH server, sets it to auto-start, makes
+# PowerShell the default SSH shell, and authorizes your Mac's public key. After
+# this runs once and the NUC is on the tailnet, every future change can be pushed
+# from the Mac with scp/ssh or Ansible - with no GitHub credentials on the device.
+Write-Step "Installing and configuring OpenSSH Server"
+
+Try-Step "OpenSSH Server installed" {
+    $cap = Get-WindowsCapability -Online -Name "OpenSSH.Server*" -ErrorAction Stop | Select-Object -First 1
+    if (-not $cap) { throw "OpenSSH.Server capability not available on this Windows edition" }
+    if ($cap.State -ne "Installed") {
+        Add-WindowsCapability -Online -Name $cap.Name -ErrorAction Stop | Out-Null
+        Write-Detail "Installed $($cap.Name)"
+    } else {
+        Write-Detail "OpenSSH Server already installed"
+    }
+}
+
+Try-Step "sshd set to auto-start with restart-on-failure" {
+    Set-Service -Name sshd -StartupType Automatic -ErrorAction Stop
+    Start-Service -Name sshd -ErrorAction Stop
+    & sc.exe failure sshd reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "sc.exe failure returned exit code $LASTEXITCODE" }
+}
+
+Try-Step "Default SSH shell set to PowerShell" {
+    if (-not (Test-Path "HKLM:\SOFTWARE\OpenSSH")) {
+        New-Item -Path "HKLM:\SOFTWARE\OpenSSH" -Force -ErrorAction Stop | Out-Null
+    }
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShell" `
+        -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        -Type String -Force -ErrorAction Stop
+}
+
+Try-Step "Firewall rule for sshd (port 22) present" -WarnOnFail {
+    if (-not (Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue)) {
+        New-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -DisplayName "OpenSSH SSH Server (sshd)" `
+            -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 -ErrorAction Stop | Out-Null
+    } else {
+        Write-Detail "Firewall rule already present"
+    }
+}
+
+Try-Step "Deploy public key authorized for holly" {
+    if ([string]::IsNullOrWhiteSpace($DeployPublicKey) -or $DeployPublicKey -eq "PASTE_YOUR_PUBLIC_KEY_HERE") {
+        throw "DeployPublicKey not set - paste your Mac's public key into the CONFIG section"
+    }
+    $hollyIsAdmin = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "*\holly" }
+    if ($hollyIsAdmin) {
+        # Windows OpenSSH ignores the per-user file for admins; the key MUST go here.
+        $akFile = "C:\ProgramData\ssh\administrators_authorized_keys"
+        Set-Content -Path $akFile -Value $DeployPublicKey -Encoding ascii -Force -ErrorAction Stop
+        & icacls $akFile /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "icacls failed to lock down $akFile" }
+        Write-Detail "Key placed in administrators_authorized_keys (holly is an admin)"
+    } else {
+        $sshDir = "C:\Users\holly\.ssh"
+        if (-not (Test-Path $sshDir)) { New-Item -Path $sshDir -ItemType Directory -Force -ErrorAction Stop | Out-Null }
+        Set-Content -Path "$sshDir\authorized_keys" -Value $DeployPublicKey -Encoding ascii -Force -ErrorAction Stop
+        Write-Detail "Key placed in holly's .ssh\authorized_keys (holly is a standard user)"
+    }
+}
+
+# ============================================================================
 # 13. KIOSK HARDENING
 # ============================================================================
 Write-Step "Disabling lock screen and notifications"
@@ -850,7 +927,7 @@ Write-Host ""
 Write-Host "Manual steps remaining:" -ForegroundColor Cyan
 Write-Host "  1. Reboot now (hostname change requires it)"
 Write-Host "  2. After reboot, run Windows Update manually until clean"
-Write-Host "  3. Clone your repo into C:\code"
+Write-Host "  3. App code is now pushed from the Mac over Tailscale - no GitHub clone needed"
 if (-not $TailscaleAuthKey) {
     Write-Host "  4. Sign in to Tailscale: tailscale up --unattended --hostname=$NewHostname"
 }
@@ -861,5 +938,12 @@ Write-Host ""
 
 Stop-Transcript | Out-Null
 
-$reboot = Read-Host "Reboot now? (y/n)"
-if ($reboot -eq "y") { Restart-Computer -Force }
+# In a non-interactive push (SSH / Ansible) Read-Host would hang forever, so honor -Unattended.
+if ($Unattended) {
+    Write-Host "Unattended mode - rebooting in 10 seconds..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 10
+    Restart-Computer -Force
+} else {
+    $reboot = Read-Host "Reboot now? (y/n)"
+    if ($reboot -eq "y") { Restart-Computer -Force }
+}

@@ -1,5 +1,8 @@
 # add-ssh.ps1  -  run once on each already-set-up NUC, in an ADMIN PowerShell
-$DeployPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
+$DeployPublicKey = @(
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVVR3cXtI2JmniyxsMkTALvsUuBGExVU8T5tvf5yuZD fleet_deploy"
+)
 
 # 1. Install the OpenSSH server
 $cap = Get-WindowsCapability -Online -Name "OpenSSH.Server*" | Select-Object -First 1
