@@ -156,7 +156,7 @@ cd C:\Users\holly\Downloads
 
   <section>
     <h2><span class="n">6</span>Everyday stuff, after setup</h2>
-    <p><strong>To update the app on every PC:</strong> on the Mac, run <code class="inline">./publish.sh</code>. All PCs download the new version themselves — even ones that are off catch up when they come back. Updates go out gradually and stop themselves automatically if the first few PCs hit a problem, so a bad version can't take out the whole fleet. The running app switches to the new code the next time it starts (tomorrow 08:30, or close it once and the watchdog reopens it on the new version).</p>
+    <p><strong>To update the app on every PC:</strong> on the Mac, run <code class="inline">./publish.sh</code>. All PCs download the new version themselves — even ones that are off catch up when they come back, and a PC that hits a problem rolls back to the previous version. The running app switches to the new code the next time it starts (tomorrow 08:30, or close it once and the watchdog reopens it on the new version).</p>
     <p><strong>To look at a PC remotely:</strong> TightVNC Viewer to its tailnet address (see the screen), or SSH (terminal).</p>
     <p><strong>If the app crashes mid-day:</strong> nothing to do — the watchdog restarts it within seconds.</p>
     <div class="note warn"><strong>If something goes wrong during setup:</strong> the script prints a summary of exactly what failed, and saves a log on the Desktop. Fix the issue (usually network) and just run the same command again — it's safe to re-run.</div>

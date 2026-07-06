@@ -107,35 +107,14 @@ for i in $(seq 1 12); do
 done
 [ "$STATE" = "DEPLOYABLE" ] || { echo "error: component still $STATE after 60s"; exit 1; }
 
-# ---- deploy to the fleet: staged rollout with auto-abort ------------------
-# Devices update a few at a time, accelerating as updates succeed. If early
-# devices FAIL the deployment (after at least 3 have run), the rollout is
-# CANCELLED automatically so a bad build never reaches the whole fleet.
-# A device that fails also ROLLS BACK to the previous working version.
+# ---- deploy to the fleet ---------------------------------------------------
+# All devices update as soon as they see the deployment. A device that fails
+# the deployment ROLLS BACK to its previous working version.
 aws greengrassv2 create-deployment \
   --target-arn "arn:aws:iot:$REGION:$ACCOUNT:thinggroup/$GROUP" \
   --deployment-name "holly-app" \
   --components "{\"$COMPONENT\":{\"componentVersion\":\"$VERSION\"}}" \
   --deployment-policies '{"failureHandlingPolicy":"ROLLBACK"}' \
-  --iot-job-configuration '{
-    "jobExecutionsRolloutConfig": {
-      "exponentialRate": {
-        "baseRatePerMinute": 2,
-        "incrementFactor": 2,
-        "rateIncreaseCriteria": { "numberOfSucceededThings": 3 }
-      },
-      "maximumPerMinute": 50
-    },
-    "abortConfig": {
-      "criteriaList": [{
-        "action": "CANCEL",
-        "failureType": "FAILED",
-        "minNumberOfExecutedThings": 3,
-        "thresholdPercentage": 20
-      }]
-    },
-    "timeoutConfig": { "inProgressTimeoutInMinutes": 60 }
-  }' \
   --region "$REGION" --output text --query deploymentId
 
 echo "done. v$VERSION deploying to $GROUP - watch per-device status with:"

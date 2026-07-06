@@ -174,7 +174,7 @@
         <h4>Cloud · AWS IoT Greengrass</h4>
         <div class="who">Owns the management layer</div>
         <ul>
-          <li>Ships new versions of the holly app to the fleet (staged rollouts + rollback)</li>
+          <li>Ships new versions of the holly app to the fleet (versioned, with per-device rollback)</li>
           <li>Devices pull releases themselves — your Mac doesn't need to be on</li>
           <li>Reports device connectivity &amp; deployment health to dashboards / alerts</li>
           <li>Per-device certificate identity &amp; security auditing</li>
@@ -365,9 +365,8 @@ window.showFullScreen()</pre>
     <p>A release is <code class="inline">./publish.sh</code> from the Mac: it zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. (<code class="inline">./publish.sh 1.4.0</code> to pin a version; otherwise the patch number auto-bumps.) What that buys over the old scp loop:</p>
     <table class="kv">
       <tr><td>Versioned</td><td>Every release is a numbered component version — you always know what's on which NUC.</td></tr>
-      <tr><td>Staged</td><td>Built into every publish: devices update a few at a time, accelerating as updates succeed (exponential rollout, capped at 50/min). Sized for a 100-PC fleet from day one.</td></tr>
-      <tr><td>Auto-abort</td><td>If ≥20% of the first devices fail the deployment, the rollout <strong>cancels itself</strong> — a bad build never reaches the whole fleet.</td></tr>
       <tr><td>Auto-rollback</td><td>A device that fails a deployment reverts to the previous working version.</td></tr>
+      <tr><td>Staged (optional)</td><td>Not enabled — releases go to all devices at once, which fits how this fleet is used (code lands once; day-to-day changes happen in the cloud). If frequent pushes ever become the norm, add an <code class="inline">--iot-job-configuration</code> rollout/abort block to publish.sh — Mac-side only, works retroactively for the whole fleet.</td></tr>
       <tr><td>Pull-based</td><td>A NUC that was offline self-updates when it reconnects — no need for your Mac to be on.</td></tr>
     </table>
 
@@ -456,7 +455,7 @@ cd C:\Users\holly\Downloads
   <section id="verify">
     <div class="sec-head"><span class="sec-num">10</span><h2>Before you commit</h2></div>
     <table class="kv">
-      <tr><td>Scale fit</td><td>Greengrass is adopted from the start as a deliberate "have it before we need it" bet: at three devices its wins are versioned releases, offline self-update, and alerting; staged rollouts and fleet auditing start paying off as the fleet grows.</td></tr>
+      <tr><td>Scale fit</td><td>Greengrass is adopted from the start as a deliberate "have it before we need it" bet: its wins here are versioned releases, offline self-update, and alerting. Staged rollouts are deliberately not enabled (releases are rare — most change happens in the cloud); see 07 for the one-block upgrade if that ever flips.</td></tr>
       <tr><td>Windows ≠ Linux</td><td>Greengrass is happiest on Linux; on Windows it's supported but fiddlier. If these could ever become Linux devices, the whole stack lightens and <strong>balena</strong> becomes a strong, purpose-built alternative worth pricing against AWS.</td></tr>
       <tr><td>The hard boundary</td><td>No tool removes the session-0 rule. The visible, scheduled, monitor-2 launch is local under every architecture — on this fleet that's <code class="inline">watchdog.ps1</code>. Greengrass only ever owns the delivery and monitoring layer around it.</td></tr>
       <tr><td>Validate once</td><td>Sections §21/§22 of <code class="inline">setup.ps1</code> and <code class="inline">publish.sh</code> are new and untested on hardware — run the full flow on one NUC end-to-end (enrol → publish → code lands → watchdog launches it) before doing the rest of the fleet.</td></tr>

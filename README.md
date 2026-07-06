@@ -106,7 +106,7 @@ From your Mac:
 ./publish.sh 1.4.0    # or publish an explicit version
 ```
 
-Each release is a numbered Greengrass component version — PCs pull it themselves (even ones that were offline when you published). Rollouts are staged with auto-abort: devices update a few at a time, speeding up as updates succeed, and if the first devices fail the rollout cancels itself (failed devices roll back to the previous version). The watchdog script ships inside every release too, so watchdog fixes reach the whole fleet the same way.
+Each release is a numbered Greengrass component version — PCs pull it themselves (even ones that were offline when you published), and a PC that fails a deployment rolls back to the previous working version. The watchdog script ships inside every release too, so watchdog fixes reach the whole fleet the same way.
 
 The new code lands in `C:\code\holly` immediately but is picked up when the app next starts: either the next 08:30 launch, or kill the app once over VNC and the watchdog relaunches it on the new code within seconds.
 
