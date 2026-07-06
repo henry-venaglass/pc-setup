@@ -4,10 +4,21 @@
 # Keep this for the day AWS is down or a single PC needs code pushed by hand:
 #   ./push.sh              -> push to every NUC listed below
 #   ./push.sh holly-002    -> push to one NUC
+#   ./push.sh list         -> show which fleet PCs are reachable right now
 KEY=~/.ssh/fleet_deploy
 NUCS=(holly-001 holly-002 holly-003)                                   # exact lowercase tailnet names
 SRC=/Users/henryforrest/Documents/code/holly-code/holly      # location of the code on your local machine
 DEST="C:/code/"
+
+# 'list' = show fleet reachability from Tailscale, then exit
+if [ "${1:-}" = "list" ]; then
+  echo "fleet status ('offline' = unreachable, anything else = ok to push):"
+  for n in "${NUCS[@]}"; do
+    line=$(tailscale status | awk -v h="$n" '$2 == h')
+    if [ -n "$line" ]; then echo "  $line"; else echo "  $n  NOT ON TAILNET"; fi
+  done
+  exit 0
+fi
 
 # Optional first argument = a single device name to push to.
 # No argument = push to every device in NUCS.
