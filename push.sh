@@ -1,4 +1,9 @@
 #!/bin/bash
+# push.sh - EMERGENCY FALLBACK deploy (scp over the tailnet).
+# publish.sh (AWS Greengrass) is the normal way code reaches the fleet.
+# Keep this for the day AWS is down or a single PC needs code pushed by hand:
+#   ./push.sh              -> push to every NUC listed below
+#   ./push.sh holly-002    -> push to one NUC
 KEY=~/.ssh/fleet_deploy
 NUCS=(holly-001 holly-002 holly-003)                                   # exact lowercase tailnet names
 SRC=/Users/henryforrest/Documents/code/holly-code/holly      # location of the code on your local machine

@@ -214,8 +214,8 @@
     </div>
 
     <div class="note">
-      <span class="lab">Removed</span>
-      <code class="inline">ssh_script.ps1</code> (retrofit for the earliest PCs — superseded by setup.ps1 §12B) and <code class="inline">push.sh</code> (scp deploys — superseded by publish.sh) are gone from the repo; both remain in git history. SSH + Tailscale themselves stay installed on every NUC as the manual/emergency access path alongside VNC.
+      <span class="lab">Also in the repo — manual fallbacks</span>
+      <code class="inline">push.sh</code> — the old scp deploy loop, kept as the <strong>emergency fallback</strong> for when AWS is unreachable or one PC needs code pushed by hand (<code class="inline">./push.sh holly-002</code>). <code class="inline">ssh_script.ps1</code> — retrofits SSH onto a PC that doesn't have it (pre-§12B machines, or a Windows reinstall), which is what push.sh needs to reach it. Simple how-to for both: <a href="manual-tools.html">manual-tools.html</a>.
     </div>
   </section>
 

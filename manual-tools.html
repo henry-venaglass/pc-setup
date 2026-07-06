@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holly Fleet — Manual Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15181C; --paper:#E7E8E4; --panel:#F3F3F0;
+    --line:#C9CBC4; --line-soft:#D9DAD4; --muted:#5B6168;
+    --amber:#E8932B; --amber-deep:#C5761A;
+    --healthy:#3F8F6B; --warn:#C24A38; --cloud:#2E6E8E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",sans-serif;font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px;}
+  header{background:var(--ink);color:#EDEEEA;padding:48px 0 40px;border-bottom:3px solid var(--amber);}
+  header .tag{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);}
+  header h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(30px,5vw,44px);line-height:1.05;margin:14px 0 14px;letter-spacing:-.02em;}
+  header p{color:#B9BDB7;font-size:17px;max-width:58ch;margin:0;}
+  header a{color:var(--amber);}
+  main{padding:12px 0 72px;}
+  section{padding:40px 0 4px;border-bottom:1px solid var(--line-soft);}
+  section:last-of-type{border-bottom:none;}
+  h2{font-family:"Space Grotesk",sans-serif;font-size:25px;margin:0 0 10px;letter-spacing:-.01em;}
+  p{margin:12px 0;}
+  strong{font-weight:600;}
+  code.inline{font-family:"IBM Plex Mono",monospace;font-size:.85em;background:#DEDFD9;padding:1px 6px;border-radius:4px;}
+  ul.plain{padding-left:22px;margin:12px 0;}
+  ul.plain li{margin:8px 0;}
+  ol.checks{padding-left:24px;margin:14px 0;}
+  ol.checks li{margin:10px 0;}
+  .when{border-left:3px solid var(--amber);background:#F6F0E6;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:15px;}
+  .when .lab{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px;color:var(--amber-deep);}
+  .note{border-left:3px solid var(--cloud);background:#EAF1F4;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:15px;}
+  .code{margin:18px 0;border-radius:6px;background:var(--ink);overflow:hidden;border:1px solid #2c3138;}
+  .code .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1b1f24;border-bottom:1px solid #2c3138;}
+  .code .bar span{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:#7E858C;text-transform:uppercase;}
+  .code .bar button{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#B9BDB7;background:transparent;border:1px solid #353b42;border-radius:4px;padding:3px 10px;cursor:pointer;text-transform:uppercase;}
+  .code .bar button:hover{color:var(--amber);border-color:var(--amber);}
+  .code pre{margin:0;padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.7;color:#DCDED8;}
+  .code pre .hl{color:var(--amber);}
+  a.dl{display:inline-block;background:var(--ink);color:var(--amber);font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:16px;text-decoration:none;padding:10px 20px;border-radius:6px;border:2px solid var(--amber);}
+  a.dl:hover{background:var(--amber);color:var(--ink);}
+  footer{background:var(--ink);color:#9aa0a6;padding:28px 0;font-size:13px;text-align:center;}
+  footer a{color:#B9BDB7;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tag">Holly fleet · manual tools</div>
+    <h1>When you need to touch one PC directly</h1>
+    <p>The normal path is AWS: code arrives on its own, <code style="font-family:'IBM Plex Mono',monospace;">./publish.sh</code> updates everything. These two tools are the manual fallbacks — for when AWS is down, a PC needs code by hand, or an old PC never got SSH. <a href="./">Back to the menu</a>.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2>push.sh — push code to one PC (or all) over Tailscale</h2>
+    <div class="when"><span class="lab">When to use</span> AWS/Greengrass is unreachable, or you want to get code onto a single PC right now without publishing a release — e.g. quick testing on one machine.</div>
+    <p>Run it <strong>on your Mac</strong>, from the pc-setup folder. It copies the holly app code straight to the PC over the tailnet using SSH:</p>
+    <div class="code">
+      <div class="bar"><span>Mac terminal</span><button onclick="cp(this)">Copy</button></div>
+<pre><span class="hl">./push.sh holly-002</span>     # push to just that PC
+<span class="hl">./push.sh</span>              # push to every PC in the list</pre>
+    </div>
+    <p>Three things it needs:</p>
+    <ul class="plain">
+      <li>The PC is <strong>online in Tailscale</strong> (check the admin console)</li>
+      <li>The PC has <strong>SSH set up</strong> — every PC provisioned by setup.ps1 has it; older PCs may need the retrofit below</li>
+      <li>The PC's name is in the <code class="inline">NUCS</code> list at the top of push.sh — add new PCs there once</li>
+    </ul>
+    <div class="note">After a push, the running app is still on the old code. Close it once (over VNC) — the watchdog relaunches it on the new code within seconds. Or wait for tomorrow's 08:30 launch.</div>
+  </section>
+
+  <section>
+    <h2>ssh_script.ps1 — give one PC SSH access</h2>
+    <div class="when"><span class="lab">When to use</span> push.sh can't reach a PC because it has no SSH — a machine set up before SSH was part of setup.ps1, or one where Windows was reinstalled. You only ever run this once per PC. New PCs never need it.</div>
+    <p>Get the script onto the PC (download it there from this site, or copy it over VNC):</p>
+    <p><a class="dl" href="ssh_script.ps1" download="ssh_script.ps1">⬇&nbsp; Download ssh_script.ps1</a></p>
+    <p>Then on that PC: right-click Start → <strong>Terminal (Admin)</strong>, and run:</p>
+    <div class="code">
+      <div class="bar"><span>Terminal (Admin) on the PC</span><button onclick="cp(this)">Copy</button></div>
+<pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+cd C:\Users\holly\Downloads
+.\ssh_script.ps1</pre>
+    </div>
+    <p>It installs the built-in Windows SSH server, sets it to start on boot, and authorises your Mac's key. Takes under a minute. Then test <strong>from your Mac</strong>:</p>
+    <div class="code">
+      <div class="bar"><span>Mac terminal</span><button onclick="cp(this)">Copy</button></div>
+<pre>ssh -i ~/.ssh/fleet_deploy holly@<span class="hl">holly-002</span></pre>
+    </div>
+    <p>If you get a PowerShell prompt on the PC, it worked — push.sh can now reach that machine.</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap"><a href="./">Menu</a> · <a href="setup-explainer.html">Set up a new PC</a> · <a href="fleet-runbook.html">Fleet runbook</a></div>
+</footer>
+
+<script>
+  function cp(btn){
+    const pre = btn.closest('.code').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(()=>{
+      const old = btn.textContent; btn.textContent='Copied';
+      setTimeout(()=>btn.textContent=old,1400);
+    }).catch(()=>{ btn.textContent='Ctrl+C'; });
+  }
+</script>
+</body>
+</html>
