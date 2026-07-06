@@ -38,12 +38,32 @@ else
   TARGETS=("${NUCS[@]}")
 fi
 
+# Push to all targets IN PARALLEL. Each device's output goes to its own log;
+# results are printed together at the end. ConnectTimeout keeps an offline PC
+# from hanging the batch, BatchMode stops ssh ever waiting for a password.
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+echo "pushing to ${#TARGETS[@]} device(s) in parallel..."
 for n in "${TARGETS[@]}"; do
-  echo "==> $n"
-  if scp -i "$KEY" -r "$SRC" "holly@$n:$DEST"; then
-    echo "   ok"
+  (
+    if scp -i "$KEY" -o ConnectTimeout=10 -o BatchMode=yes -r \
+        "$SRC" "holly@$n:$DEST" >"$WORK/$n.log" 2>&1; then
+      echo ok >"$WORK/$n.result"
+    fi
+  ) &
+done
+wait
+
+failed=0
+for n in "${TARGETS[@]}"; do
+  if [ "$(cat "$WORK/$n.result" 2>/dev/null)" = "ok" ]; then
+    echo "==> $n   ok"
   else
-    echo "   FAILED — skipping"
+    echo "==> $n   FAILED"
+    tail -3 "$WORK/$n.log" 2>/dev/null | sed 's/^/      /'
+    failed=1
   fi
 done
 echo "done."
+exit $failed
