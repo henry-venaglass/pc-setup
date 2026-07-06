@@ -2,13 +2,16 @@
 
 Automated setup script for new Holly NUC PCs. Run after Windows OOBE to debloat the machine, lock it down, install required apps, and onboard it to the fleet.
 
+New to this? Start with the **[setup guide](https://henry-venaglass.github.io/pc-setup/setup-explainer.html)** — a plain-English web page explaining what the script does and how to run it, with a download button for the script (follow it from the new PC's browser). For the full fleet architecture — how the scripts fit together, the kiosk watchdog, and the AWS IoT Greengrass delivery/monitoring layer — see the **[fleet runbook](https://henry-venaglass.github.io/pc-setup/fleet-runbook.html)**.
+
 ## Before you start
 
 You'll need:
 
 - The NUC, with power, monitor, keyboard, mouse, and ethernet cable
-- USB stick containing `setup.ps1` (passwords and Tailscale auth key already filled in)
+- USB stick containing `setup.ps1` (the watchdog is embedded inside it)
 - The PC number for this machine (e.g. `001`, `002`, `003`)
+- A Tailscale auth key and a temporary AWS access key + secret (for Greengrass enrolment)
 - A label maker
 
 ## Step 1 — Windows Out-of-Box Experience
@@ -34,40 +37,38 @@ Once you're at the desktop, plug in the ethernet cable.
 
 ## Step 3 — Run the setup script
 
-Get the script onto the PC — either plug in the USB stick, or download it from GitHub directly on the PC. Save it to the Downloads folder (`C:\Users\holly\Downloads`).
+Get `setup.ps1` onto the PC — either plug in the USB stick, or download it from GitHub directly on the PC. Save it to the Downloads folder (`C:\Users\holly\Downloads`).
 
 Right-click the Start button and open **Terminal (Admin)**. Run these three commands, one at a time:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\Users\holly\Downloads
-.\setup.ps1 -PCNumber xxx -AuthKey "tskey-auth-..."
+.\setup.ps1 -PCNumber xxx -AuthKey "tskey-auth-..." -AwsAccessKey "AKIA..." -AwsSecretKey "..."
 ```
 
-Replace `xxx` with this PC's number (`001`, `002`, etc.) and `tskey-auth-...` with the Tailscale auth key. The script takes 15–30 minutes. When it asks to reboot, say yes.
+Replace `xxx` with this PC's number (`001`, `002`, etc.), `tskey-auth-...` with the Tailscale auth key, and the AWS keys with a temporary access key from the AWS account (used only during Greengrass enrolment, then cleared from the machine). The script takes 15–30 minutes. When it asks to reboot, say yes.
+
+As well as everything else, the script registers the watchdog (which launches and supervises the app during kiosk hours) and enrols the PC into AWS IoT Greengrass as `holly-xxx` in the `holly-fleet` group — which is how app code gets onto the machine.
 
 ## Step 4 — Run Windows Update
 
 After reboot, open **Settings → Windows Update** and click **Check for updates**. Install everything, reboot when prompted, and repeat until no updates remain.
 
-## Step 5 — Verify Tailscale and VNC
+## Step 5 — Verify Tailscale, VNC, and Greengrass
 
 From a different machine (e.g. your laptop):
 
 - Open the Tailscale admin console — confirm `HOLLY-xxx` appears, tagged `holly-pc`, and is online
 - Open TightVNC Viewer and connect to its tailnet IP
 - Enter the VNC password and confirm you see holly's desktop
+- Open the AWS console → IoT Core → Greengrass → Core devices — confirm `holly-xxx` shows **Healthy**
 
-## Step 6 — Clone the repo and set up the app
+## Step 6 — Get the app code on and test it
 
-Open PowerShell as `holly` and clone the repo into `C:\code`:
+The app code arrives via Greengrass: a newly enrolled PC automatically pulls the fleet's current deployment (or run `./publish.sh` from your Mac to push a fresh release). Wait a few minutes, then confirm `C:\code\holly` exists on the PC.
 
-```powershell
-cd C:\code
-git clone <repo-url>
-```
-
-Install dependencies and test the app runs end-to-end. Once it works, edit `C:\code\launch-holly-app.bat` and put the real launch command in it (the script created a placeholder).
+Test it runs end-to-end: open PowerShell as `holly`, `cd C:\code\holly\projects\holly-local`, and run `uv run holly`. Close it when happy — the watchdog task (registered by setup.ps1) will launch and supervise it automatically during kiosk hours (Mon–Fri 08:30–18:00).
 
 ## Step 7 — Set up OBS for virtual camera only
 
@@ -88,22 +89,37 @@ Open Device Manager (right-click Start → **Device Manager**) and disable the N
 Restart the PC. The expected sequence with no intervention:
 
 - No login prompt — holly's desktop appears automatically
-- The Holly app launches
+- The watchdog starts, and (during kiosk hours, Mon–Fri 08:30–18:00) launches the Holly app
 - OBS virtual camera is active
 
 ## Step 10 — Label the PC
 
 Print a label with this PC's name (e.g. `HOLLY-001`) and stick it on the bottom of the box so you can easily tell which PC is which.
 
+## Releasing code to the fleet
+
+From your Mac:
+
+```bash
+./publish.sh          # auto-bumps the version, deploys to every PC in holly-fleet
+./publish.sh 1.4.0    # or publish an explicit version
+```
+
+Each release is a numbered Greengrass component version — PCs pull it themselves (even ones that were offline when you published). The new code lands in `C:\code\holly` immediately but is picked up when the app next starts: either the next 08:30 launch, or kill the app once over VNC and the watchdog relaunches it on the new code within seconds.
+
+There's a one-time AWS setup (artifact bucket + device read access) documented at the top of `publish.sh`.
+
 ## Final checklist
 
 - [ ] PC name shows as `HOLLY-xxx`
 - [ ] User account is `holly` in lowercase
 - [ ] PC visible in Tailscale admin console, tagged `holly-pc`
+- [ ] PC shows **Healthy** in AWS Greengrass → Core devices as `holly-xxx`
+- [ ] App code present at `C:\code\holly` (delivered by Greengrass)
+- [ ] `Holly-Watchdog` task exists in Task Scheduler (runs at holly's logon)
 - [ ] VNC works from a remote machine over the tailnet IP
 - [ ] PC reboots without manual interaction
 - [ ] `holly` auto-logs in, no password prompt
-- [ ] Mouse cursor hides after a few seconds idle
 - [ ] OBS virtual camera is active
 - [ ] Wifi and Bluetooth disabled
 - [ ] Windows Update fully complete

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holly Fleet Runbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15181C;
+    --ink-2:#22272E;
+    --paper:#E7E8E4;
+    --panel:#F3F3F0;
+    --line:#C9CBC4;
+    --line-soft:#D9DAD4;
+    --muted:#5B6168;
+    --amber:#E8932B;
+    --amber-deep:#C5761A;
+    --healthy:#3F8F6B;
+    --warn:#C24A38;
+    --cloud:#2E6E8E;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"IBM Plex Sans",sans-serif;font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px;}
+  .mono{font-family:"IBM Plex Mono",monospace;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber-deep);font-weight:500;}
+
+  header.hero{background:var(--ink);color:#EDEEEA;padding:64px 0 0;border-bottom:3px solid var(--amber);}
+  .hero .wrap{padding-bottom:0;}
+  .hero .kicker{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+  .hero .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--healthy);box-shadow:0 0 0 3px rgba(63,143,107,.2);}
+  .hero h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:clamp(38px,7vw,68px);line-height:1.02;letter-spacing:-.02em;margin:18px 0 18px;}
+  .hero h1 em{color:var(--amber);font-style:normal;}
+  .hero p.lede{font-size:18px;max-width:62ch;color:#B9BDB7;margin:0 0 40px;}
+  .fleetrail{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--ink-2);border-top:1px solid #2c3138;}
+  .node{background:var(--ink);padding:18px 16px;border-bottom:1px solid #2c3138;}
+  .node .id{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#7E858C;letter-spacing:.04em;}
+  .node .state{display:flex;align-items:center;gap:7px;margin-top:8px;font-family:"IBM Plex Mono",monospace;font-size:13px;color:#D7D9D4;}
+  .node .light{width:9px;height:9px;border-radius:50%;}
+  .light.on{background:var(--amber);box-shadow:0 0 8px 1px rgba(232,147,43,.6);}
+  .light.ok{background:var(--healthy);box-shadow:0 0 6px 1px rgba(63,143,107,.5);}
+  .light.off{background:#4a5057;}
+
+  main{padding:8px 0 80px;}
+  section{padding:56px 0 8px;border-bottom:1px solid var(--line-soft);}
+  section:last-of-type{border-bottom:none;}
+  .sec-head{display:flex;gap:18px;align-items:baseline;margin-bottom:8px;}
+  .sec-num{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:15px;color:var(--amber-deep);border:1.5px solid var(--amber);border-radius:3px;padding:2px 9px;flex:none;line-height:1.4;}
+  h2{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:clamp(26px,4vw,34px);line-height:1.12;letter-spacing:-.01em;margin:0;}
+  h3{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:20px;margin:34px 0 10px;letter-spacing:-.01em;}
+  p{margin:14px 0;}
+  strong{font-weight:600;}
+  a{color:var(--cloud);}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:28px 0;position:relative;background:var(--panel);}
+  .split .col{padding:24px 22px;}
+  .split .col.cloud{background:#EAF1F4;border-right:2px dashed var(--cloud);}
+  .split .col.local{background:#F6F0E6;}
+  .split .col h4{margin:0 0 4px;font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;}
+  .split .cloud h4{color:var(--cloud);}
+  .split .local h4{color:var(--amber-deep);}
+  .split .who{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:18px;margin-bottom:14px;}
+  .split ul{margin:0;padding-left:18px;}
+  .split li{margin:7px 0;font-size:14.5px;}
+  .boundary-note{grid-column:1/-1;background:var(--ink);color:#E7E8E4;padding:14px 22px;font-size:14px;display:flex;gap:12px;align-items:flex-start;}
+  .boundary-note .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;background:var(--warn);padding:3px 8px;border-radius:3px;text-transform:uppercase;flex:none;font-weight:600;color:#fff;}
+
+  ol.steps{list-style:none;counter-reset:s;padding:0;margin:24px 0;}
+  ol.steps>li{counter-increment:s;position:relative;padding:0 0 22px 52px;margin:0;border-left:1.5px solid var(--line);margin-left:14px;}
+  ol.steps>li:last-child{border-left-color:transparent;}
+  ol.steps>li::before{content:counter(s);position:absolute;left:-15px;top:-2px;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--amber);font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center;}
+  ol.steps>li .st-title{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:17px;}
+  ol.steps>li p{margin:6px 0;}
+
+  .code{position:relative;margin:16px 0;border:1px solid #2c3138;border-radius:6px;background:var(--ink);overflow:hidden;}
+  .code .bar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #2c3138;background:#1b1f24;}
+  .code .bar .lang{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:#7E858C;text-transform:uppercase;}
+  .code .bar button{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;color:#B9BDB7;background:transparent;border:1px solid #353b42;border-radius:4px;padding:3px 10px;cursor:pointer;text-transform:uppercase;transition:.15s;}
+  .code .bar button:hover{color:var(--amber);border-color:var(--amber);}
+  .code pre{margin:0;padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13.5px;line-height:1.7;color:#DCDED8;}
+  .code pre .c{color:#6f7780;}
+  .code pre .k{color:var(--amber);}
+  .code pre .s{color:#8FBF9F;}
+  .code pre .v{color:#7FB4CE;}
+  code.inline{font-family:"IBM Plex Mono",monospace;font-size:.88em;background:#DEDFD9;padding:1px 6px;border-radius:4px;color:var(--ink-2);}
+
+  .note{border-left:3px solid var(--cloud);background:#EAF1F4;padding:14px 18px;margin:18px 0;border-radius:0 6px 6px 0;font-size:14.5px;}
+  .note.warn{border-left-color:var(--warn);background:#F7ECE9;}
+  .note.tip{border-left-color:var(--healthy);background:#E9F3EE;}
+  .note .lab{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px;color:var(--cloud);}
+  .note.warn .lab{color:var(--warn);}
+  .note.tip .lab{color:var(--healthy);}
+
+  nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px 24px;margin:36px 0 8px;}
+  nav.toc .eyebrow{margin-bottom:12px;display:block;}
+  nav.toc ol{margin:0;padding:0;list-style:none;counter-reset:t;display:grid;grid-template-columns:1fr 1fr;gap:4px 28px;}
+  nav.toc li{counter-increment:t;font-size:14.5px;padding:3px 0;}
+  nav.toc li::before{content:counter(t,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;color:var(--amber-deep);margin-right:10px;font-size:12px;}
+  nav.toc a{color:var(--ink-2);text-decoration:none;}
+  nav.toc a:hover{color:var(--amber-deep);}
+
+  table.kv{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;}
+  table.kv td{border-bottom:1px solid var(--line-soft);padding:10px 12px;vertical-align:top;}
+  table.kv td:first-child{font-family:"IBM Plex Mono",monospace;color:var(--ink-2);white-space:nowrap;width:1%;font-size:13px;}
+
+  .script-map{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:22px 0;}
+  .script-map .row{display:flex;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:var(--panel);}
+  .script-map .row:last-child{border-bottom:none;}
+  .script-map .n{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--amber-deep);flex:none;}
+  .script-map .row strong{font-family:"Space Grotesk",sans-serif;}
+
+  footer{background:var(--ink);color:#9aa0a6;padding:40px 0;font-size:13px;}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  footer .mono{color:#7E858C;}
+
+  @media(max-width:680px){
+    .split{grid-template-columns:1fr;}
+    .split .col.cloud{border-right:none;border-bottom:2px dashed var(--cloud);}
+    .fleetrail{grid-template-columns:repeat(2,1fr);}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker"><span class="dot"></span> Ops Runbook · v3 · HOLLY NUC fleet · matches the pc-setup repo</div>
+    <h1>Holly<br>Fleet <em>Runbook</em></h1>
+    <p class="lede">How the fleet runs — <span class="mono">setup.ps1</span> provisions each NUC (including watchdog registration and Greengrass enrolment), <span class="mono">publish.sh</span> releases versioned code to the fleet via AWS IoT Greengrass, and <span class="mono">watchdog.ps1</span> keeps the Qt receptionist browser alive 08:30–18:00 Mon–Fri. Devices auto-login as <span class="mono">holly</span> and run 24/7.</p>
+  </div>
+  <div class="fleetrail">
+    <div class="node"><div class="id">HOLLY-001</div><div class="state"><span class="light on"></span> kiosk live</div></div>
+    <div class="node"><div class="id">HOLLY-002</div><div class="state"><span class="light on"></span> kiosk live</div></div>
+    <div class="node"><div class="id">HOLLY-003</div><div class="state"><span class="light ok"></span> healthy · idle</div></div>
+    <div class="node"><div class="id">HOLLY-004</div><div class="state"><span class="light off"></span> not yet enrolled</div></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <nav class="toc">
+    <span class="eyebrow">Contents</span>
+    <ol>
+      <li><a href="#model">The two halves &amp; the boundary</a></li>
+      <li><a href="#repo">What the repo already covers</a></li>
+      <li><a href="#names">Naming the fleet in AWS</a></li>
+      <li><a href="#enrol">Enrol a NUC into Greengrass</a></li>
+      <li><a href="#watchdog">Schedule &amp; self-heal: watchdog.ps1</a></li>
+      <li><a href="#fullscreen">Qt browser → fullscreen, monitor 2</a></li>
+      <li><a href="#deploy">Pushing code: publish.sh</a></li>
+      <li><a href="#monitor">Watch &amp; alert</a></li>
+      <li><a href="#provision">Provisioning a new NUC, end to end</a></li>
+      <li><a href="#verify">Before you commit</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="model">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The two halves, and the line between them</h2></div>
+    <p>Everything splits into two responsibilities. The cloud side — AWS IoT Greengrass — <strong>delivers the code and watches the fleet</strong>. The local Windows session — auto-logged-in as <code class="inline">holly</code>, running 24/7 — <strong>draws the pixels on screen</strong>. Greengrass owns delivery and only delivery; the local half is already built and doesn't change.</p>
+
+    <div class="split">
+      <div class="col cloud">
+        <h4>Cloud · AWS IoT Greengrass</h4>
+        <div class="who">Owns the management layer</div>
+        <ul>
+          <li>Ships new versions of the holly app to the fleet (staged rollouts + rollback)</li>
+          <li>Devices pull releases themselves — your Mac doesn't need to be on</li>
+          <li>Reports device connectivity &amp; deployment health to dashboards / alerts</li>
+          <li>Per-device certificate identity &amp; security auditing</li>
+        </ul>
+      </div>
+      <div class="col local">
+        <h4>Local · holly's Windows session</h4>
+        <div class="who">Owns what's on the screen</div>
+        <ul>
+          <li>Auto-login as <code class="inline">holly</code>, 24/7 — set up by <code class="inline">setup.ps1</code></li>
+          <li><code class="inline">watchdog.ps1</code> launches <code class="inline">uv run holly</code> at 08:30, closes it at 18:00, Mon–Fri</li>
+          <li>The Qt window picks monitor 2 and goes fullscreen (app concern)</li>
+          <li>The same watchdog relaunches the app if it crashes or hangs mid-day</li>
+        </ul>
+      </div>
+      <div class="boundary-note">
+        <span class="tag">session&nbsp;0</span>
+        <div>Greengrass runs as a Windows <strong>service</strong>, and services live in session 0, isolated from the interactive desktop. A GUI launched from there <strong>will not appear on any monitor.</strong> That single fact is why the visible launch must always be local — under AWS or any other tool. Greengrass can <em>deliver</em> the app and confirm the device is alive; it must never be the thing that paints it on monitor 2. On this fleet, the thing that paints it is <code class="inline">watchdog.ps1</code>.</div>
+      </div>
+    </div>
+
+    <div class="note tip">
+      <span class="lab">Worth knowing</span>
+      Greengrass is adopted from the start deliberately — having the fleet machinery in place before expanding beats retrofitting it after. Nothing local depends on it though: <code class="inline">setup.ps1</code> and <code class="inline">watchdog.ps1</code> are identical with or without the cloud layer, and the tailnet stays on every NUC for VNC and interactive SSH.
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="repo">
+    <div class="sec-head"><span class="sec-num">02</span><h2>What the repo already covers</h2></div>
+    <p>Two scripts in <code class="inline">pc-setup</code> carry the fleet — one you run per NUC, one you run per release — plus the watchdog loop, which lives <em>inside</em> setup.ps1 and gets written onto every PC.</p>
+
+    <div class="script-map">
+      <div class="row"><span class="n">setup.ps1</span><div><strong>First-boot provisioning — the one script you run on a PC.</strong> Run once per NUC with <code class="inline">-PCNumber xxx -AuthKey tskey-auth-… -AwsAccessKey … -AwsSecretKey …</code>. Renames the PC to <code class="inline">HOLLY-xxx</code>, configures auto-login as <code class="inline">holly</code>, debloats, installs TightVNC + OpenSSH server, hardens the kiosk, joins the tailnet, disables wifi/BT — then (§21) installs and registers <code class="inline">watchdog.ps1</code> as a logon task, and (§22) enrols the device into Greengrass as <code class="inline">holly-xxx</code> in <code class="inline">holly-fleet</code>. Writes <code class="inline">C:\code\setup-status.json</code>.</div></div>
+      <div class="row"><span class="n">publish.sh</span><div><strong>Releases — the one script you run on the Mac.</strong> Zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. Devices pull it themselves — offline NUCs catch up when they reconnect, and a newly enrolled NUC receives the current version automatically. Replaced <code class="inline">push.sh</code> (scp over the tailnet).</div></div>
+      <div class="row"><span class="n">watchdog</span><div><strong>Runtime.</strong> Embedded inside <code class="inline">setup.ps1</code> §21 (a here-string — that's its source of truth), written to <code class="inline">C:\code\watchdog.ps1</code> and registered as a logon task during provisioning. Runs continuously in holly's interactive session: launches <code class="inline">uv run holly</code> from <code class="inline">C:\code\holly\projects\holly-local</code>, enforces the 08:30–18:00 Mon–Fri window, restarts on crash or hang (with restart-storm backoff), logs to <code class="inline">C:\Watchdog</code>. <em>This is the local half of the boundary — Greengrass never touches it.</em></div></div>
+    </div>
+
+    <div class="note">
+      <span class="lab">Removed</span>
+      <code class="inline">ssh_script.ps1</code> (retrofit for the earliest PCs — superseded by setup.ps1 §12B), <code class="inline">push.sh</code> (scp deploys — superseded by publish.sh), and the standalone <code class="inline">watchdog.ps1</code> (now embedded in setup.ps1) are gone from the repo; all remain in git history. SSH + Tailscale themselves stay installed on every NUC as the manual/emergency access path alongside VNC.
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="names">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Naming the fleet in AWS</h2></div>
+    <p>You already have the AWS account the agent is hosted on, so there's no account or IAM setup — just fix the names so the AWS console lines up with the Tailscale console. Keep thing names identical to the tailnet machine names.</p>
+    <table class="kv">
+      <tr><td>Region</td><td><code class="inline">eu-west-2</code> (London) — match wherever the agent is already hosted.</td></tr>
+      <tr><td>Thing name</td><td>Unique per device, same as its tailnet name: <code class="inline">holly-001</code>, <code class="inline">holly-002</code>, … (Windows hostname stays <code class="inline">HOLLY-001</code>; thing names lowercase to match Tailscale.) The one value that changes per NUC.</td></tr>
+      <tr><td>Thing group</td><td>The fleet you deploy to: <code class="inline">holly-fleet</code>. Deploy once → every device in the group gets it.</td></tr>
+      <tr><td>Component user</td><td>A local account, <code class="inline">ggc_user</code>, that Greengrass runs components as — <strong>not</strong> <code class="inline">holly</code>. Components only move files; they never touch the screen, so they shouldn't run as the kiosk user.</td></tr>
+    </table>
+  </section>
+
+  <!-- 4 -->
+  <section id="enrol">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Enrol a NUC into Greengrass</h2></div>
+    <p>"Connecting a device" isn't a button — installing the Greengrass Core software <em>is</em> the connection. The installer creates the Thing, generates the certificate, makes the device's IAM role, and drops it into <code class="inline">holly-fleet</code> in one shot. <strong>This is all automated as <code class="inline">setup.ps1</code> §22</strong> — it runs when you pass <code class="inline">-AwsAccessKey</code>/<code class="inline">-AwsSecretKey</code>. The steps below are what §22 does under the hood, and how to enrol an already-provisioned PC by hand.</p>
+
+    <ol class="steps">
+      <li>
+        <div class="st-title">Install a JRE</div>
+        <p>Greengrass Core runs on the JVM. §22 installs Amazon Corretto via winget:</p>
+        <div class="code">
+          <div class="bar"><span class="lang">PowerShell (admin)</span><button onclick="cp(this)">Copy</button></div>
+<pre>winget install <span class="k">--id</span> Amazon.Corretto.11.JRE --silent --accept-package-agreements --accept-source-agreements
+<span class="c"># java lands at C:\Program Files\Amazon Corretto\*\bin\java.exe</span></pre>
+        </div>
+      </li>
+      <li>
+        <div class="st-title">Create the component user</div>
+        <p>Make the local <code class="inline">ggc_user</code> account (random password, never expires) and store its credential <strong>where the Greengrass service can read it</strong>. The service runs as SYSTEM, so <code class="inline">cmdkey</code> must run as SYSTEM too — that's what PsExec is for. Plain <code class="inline">cmdkey</code> in your admin shell stores it in the wrong account's vault and enrolment will look fine but components will fail to run.</p>
+        <div class="code">
+          <div class="bar"><span class="lang">PowerShell (admin)</span><button onclick="cp(this)">Copy</button></div>
+<pre><span class="c"># create the user Greengrass runs components as</span>
+net user ggc_user <span class="s">"&lt;a-strong-password&gt;"</span> /add
+Set-LocalUser ggc_user -PasswordNeverExpires $true
+<span class="c"># store the credential in SYSTEM's vault (PsExec from Sysinternals)</span>
+.\PsExec.exe -accepteula -s cmd /c <span class="s">"cmdkey /generic:ggc_user /user:ggc_user /pass:&lt;a-strong-password&gt;"</span>
+<span class="c"># let deployments write the app code</span>
+icacls C:\code /grant <span class="s">"ggc_user:(OI)(CI)M"</span></pre>
+        </div>
+      </li>
+      <li>
+        <div class="st-title">Provide temporary AWS credentials</div>
+        <p>Set them as environment variables for this shell only, from your existing account. Remove them once the install finishes.</p>
+        <div class="code">
+          <div class="bar"><span class="lang">PowerShell</span><button onclick="cp(this)">Copy</button></div>
+<pre>$env:<span class="v">AWS_ACCESS_KEY_ID</span>=<span class="s">"AKIA..."</span>
+$env:<span class="v">AWS_SECRET_ACCESS_KEY</span>=<span class="s">"..."</span></pre>
+        </div>
+      </li>
+      <li>
+        <div class="st-title">Run the installer with auto-provisioning</div>
+        <p>This registers the Thing, installs the certificate, joins the group, and sets Greengrass up as a Windows service that starts on boot. Only <code class="inline">--thing-name</code> changes per device.</p>
+        <div class="code">
+          <div class="bar"><span class="lang">PowerShell</span><button onclick="cp(this)">Copy</button></div>
+<pre>java <span class="k">-Droot</span>=<span class="s">"C:\greengrass\v2"</span> <span class="k">-Dlog.store</span>=FILE `
+  -jar .\GreengrassInstaller\lib\Greengrass.jar `
+  <span class="k">--aws-region</span> eu-west-2 `
+  <span class="k">--thing-name</span> holly-001 `
+  <span class="k">--thing-group-name</span> holly-fleet `
+  <span class="k">--component-default-user</span> ggc_user `
+  <span class="k">--provision</span> true `
+  <span class="k">--setup-system-service</span> true
+
+<span class="c"># then clear the provisioning creds:</span>
+Remove-Item Env:\AWS_ACCESS_KEY_ID, Env:\AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue</pre>
+        </div>
+      </li>
+      <li>
+        <div class="st-title">Confirm it's "Healthy"</div>
+        <p>The NUC opens a persistent MQTT connection and appears under <strong>Greengrass → Core devices</strong> as <span class="mono" style="color:var(--healthy)">Healthy</span>. Because it joined <code class="inline">holly-fleet</code>, it automatically pulls the group's current deployment — the app code arrives in <code class="inline">C:\code\holly</code> within a few minutes, no push needed.</p>
+      </li>
+    </ol>
+
+    <div class="note warn">
+      <span class="lab">Credential hygiene</span>
+      The auto installer wants AWS keys present on the box during install. For a real fleet, prefer the manual-certificate path (create the cert/policy in AWS, hand the files over) so provisioning keys never touch the device. At minimum, clear the env vars after install — the command above does.
+    </div>
+    <div class="note">
+      <span class="lab">Verify</span>
+      Installer flags, the Java version, and Windows service behaviour shift between Greengrass v2 releases. Check the current AWS docs before folding this into <code class="inline">setup.ps1</code>.
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="watchdog">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Schedule &amp; self-heal: watchdog.ps1</h2></div>
+    <p>An earlier draft of this runbook used two Task Scheduler jobs (start 08:30, stop 18:00) plus a separate watchdog. The repo collapsed all three into one script, and that's the better design here: <code class="inline">watchdog.ps1</code> is a single loop that owns the whole window. Inside 08:30–18:00 on weekdays it makes sure <code class="inline">uv run holly</code> is running and relaunches it on crash or hang; outside the window (and all weekend) it closes the app gracefully, escalating to a process-tree kill if needed.</p>
+
+    <table class="kv">
+      <tr><td>Launch</td><td><code class="inline">uv run holly</code> in <code class="inline">C:\code\holly\projects\holly-local</code> — a command line, not an .exe, which is why kill-by-image-name would be wrong here. The watchdog tracks the exact PID it started.</td></tr>
+      <tr><td>Window</td><td>08:30–18:00, <strong>Mon–Fri only</strong> (parameters <code class="inline">-StartTime</code> / <code class="inline">-EndTime</code>).</td></tr>
+      <tr><td>Crash</td><td>Polls every 3s; relaunches with the exit code logged.</td></tr>
+      <tr><td>Hang</td><td>Optional <code class="inline">-DetectHang</code>: an unresponsive window gets a 30s grace period, then a tree-kill and relaunch.</td></tr>
+      <tr><td>Storms</td><td>More than 5 restarts in 60s → back off 60s, so a broken build can't spin the CPU all day.</td></tr>
+      <tr><td>Logs</td><td><code class="inline">C:\Watchdog\qtbrowser-watchdog.log</code> — this file is also the natural heartbeat source (see 08).</td></tr>
+      <tr><td>Fresh PC</td><td>If <code class="inline">C:\code\holly</code> hasn't arrived yet (first Greengrass deployment still downloading), the watchdog waits for it rather than exiting — so it's safe to register during setup, before any code exists.</td></tr>
+    </table>
+
+    <h3>How it starts</h3>
+    <p><code class="inline">setup.ps1</code> §21 writes the embedded watchdog to <code class="inline">C:\code\watchdog.ps1</code> and registers it as the <code class="inline">Holly-Watchdog</code> logon task, running <strong>interactively as holly</strong> so anything it launches paints on the real desktop. For PCs provisioned before §21 existed, put the watchdog at <code class="inline">C:\code\watchdog.ps1</code> yourself (copy the here-string body out of setup.ps1 §21) and run the same registration by hand:</p>
+    <div class="code">
+      <div class="bar"><span class="lang">PowerShell (admin) — only needed on pre-§21 PCs</span><button onclick="cp(this)">Copy</button></div>
+<pre>$action = New-ScheduledTaskAction <span class="k">-Execute</span> <span class="s">"powershell.exe"</span> `
+  <span class="k">-Argument</span> <span class="s">'-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog.ps1'</span>
+
+$trigger = New-ScheduledTaskTrigger <span class="k">-AtLogOn</span> <span class="k">-User</span> <span class="s">"holly"</span>
+
+<span class="c"># interactive logon as the auto-logged-in user = windows it spawns are visible</span>
+$principal = New-ScheduledTaskPrincipal <span class="k">-UserId</span> <span class="s">"holly"</span> <span class="k">-LogonType</span> Interactive
+
+$settings = New-ScheduledTaskSettingsSet <span class="k">-ExecutionTimeLimit</span> ([TimeSpan]::Zero) `
+  <span class="k">-RestartCount</span> 3 <span class="k">-RestartInterval</span> (New-TimeSpan -Minutes 1)
+
+Register-ScheduledTask <span class="k">-TaskName</span> <span class="s">"Holly-Watchdog"</span> `
+  <span class="k">-Action</span> $action <span class="k">-Trigger</span> $trigger <span class="k">-Principal</span> $principal <span class="k">-Settings</span> $settings <span class="k">-Force</span></pre>
+    </div>
+    <div class="note tip"><span class="lab">Why the settings block matters</span> Task Scheduler kills tasks after 72h by default — <code class="inline">-ExecutionTimeLimit</code> zero lets the watchdog run forever, and the restart settings relaunch the watchdog itself if it ever dies. Note the watchdog is deployed by <code class="inline">setup.ps1</code>, not by Greengrass — to change it, edit the here-string in setup.ps1 §21 (the source of truth), then update <code class="inline">C:\code\watchdog.ps1</code> on each PC (SSH over the tailnet) and restart the task.</div>
+  </section>
+
+  <!-- 6 -->
+  <section id="fullscreen">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Qt browser → fullscreen on monitor 2</h2></div>
+    <p>Where the window appears is an <strong>app concern</strong>, and it belongs in the holly app itself (the Qt browser that <code class="inline">uv run holly</code> starts) — the app knows its own window and when it's ready, so it's far more reliable than any external nudging. Find the second screen, move the window onto it, go fullscreen.</p>
+    <div class="code">
+      <div class="bar"><span class="lang">Python · PySide6 / PyQt</span><button onclick="cp(this)">Copy</button></div>
+<pre><span class="k">from</span> PySide6.QtGui <span class="k">import</span> QGuiApplication
+
+screens = QGuiApplication.screens()
+<span class="c"># index 1 = second monitor; fall back to primary if only one</span>
+target  = screens[<span class="v">1</span>] <span class="k">if</span> len(screens) &gt; <span class="v">1</span> <span class="k">else</span> screens[<span class="v">0</span>]
+
+window.setScreen(target)
+window.setGeometry(target.geometry())
+window.showFullScreen()</pre>
+    </div>
+    <div class="note tip"><span class="lab">Tip</span> Monitor order isn't guaranteed to match physical layout. If "screen 1" lands on the wrong panel, select by the target screen's known geometry/position rather than its list index.</div>
+  </section>
+
+  <!-- 7 -->
+  <section id="deploy">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Pushing code: publish.sh</h2></div>
+    <p>A release is <code class="inline">./publish.sh</code> from the Mac: it zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. (<code class="inline">./publish.sh 1.4.0</code> to pin a version; otherwise the patch number auto-bumps.) What that buys over the old scp loop:</p>
+    <table class="kv">
+      <tr><td>Versioned</td><td>Every release is a numbered component version — you always know what's on which NUC.</td></tr>
+      <tr><td>Staged</td><td>Roll out to one device first, then the rest. A bad push doesn't hit the whole fleet at once.</td></tr>
+      <tr><td>Auto-rollback</td><td>If a deployment fails its health checks, it reverts.</td></tr>
+      <tr><td>Pull-based</td><td>A NUC that was offline self-updates when it reconnects — no need for your Mac to be on.</td></tr>
+    </table>
+
+    <h3>What the component does (and deliberately doesn't)</h3>
+    <p>The recipe <code class="inline">publish.sh</code> generates <strong>only installs files</strong>: Greengrass unzips the artifact and robocopy-mirrors it into <code class="inline">C:\code\holly</code>, leaving <code class="inline">.venv</code> alone (it's locked while the app runs, and <code class="inline">uv run</code> re-syncs dependencies at launch anyway). Crucially there is <strong>no Run step</strong>: Greengrass lives in session 0 and must never launch the browser. The watchdog keeps launching from the same folder it always has and simply picks up the new code.</p>
+    <div class="code">
+      <div class="bar"><span class="lang">the recipe publish.sh generates — com.holly.app</span><button onclick="cp(this)">Copy</button></div>
+<pre>{
+  <span class="v">"ComponentName"</span>: <span class="s">"com.holly.app"</span>,
+  <span class="v">"ComponentVersion"</span>: <span class="s">"1.0.1"</span>,   <span class="c">// auto-bumped each release</span>
+  <span class="v">"Manifests"</span>: [{
+    <span class="v">"Platform"</span>: { <span class="v">"os"</span>: <span class="s">"windows"</span> },
+    <span class="v">"Lifecycle"</span>: {
+      <span class="v">"install"</span>: <span class="s">"robocopy &lt;unzipped artifact&gt; C:\code\holly /MIR /XD .venv"</span>
+      <span class="c">// no "run" — the GUI launch belongs to watchdog.ps1 in holly's session</span>
+    },
+    <span class="v">"Artifacts"</span>: [{ <span class="v">"URI"</span>: <span class="s">"s3://holly-greengrass-artifacts/…/holly.zip"</span>, <span class="v">"Unarchive"</span>: <span class="s">"ZIP"</span> }]
+  }]
+}</pre>
+    </div>
+    <p>The new code lands on disk as soon as each device pulls the deployment. During kiosk hours, kill the running app once (<code class="inline">taskkill</code> over SSH, or close it via VNC) — the watchdog relaunches it on the new code within seconds. Otherwise it's picked up at the next 08:30 launch.</p>
+    <div class="note warn">
+      <span class="lab">One-time AWS setup</span>
+      Before the first publish: create the artifact bucket (<code class="inline">holly-greengrass-artifacts</code>) and grant the devices' <code class="inline">GreengrassV2TokenExchangeRole</code> read access to it — the role the installer creates <strong>cannot read S3 by default</strong>, and without this every deployment fails at download. Exact commands are at the top of <code class="inline">publish.sh</code>.
+    </div>
+    <div class="note">
+      <span class="lab">How it meets the local side</span>
+      Greengrass delivers the code; <code class="inline">watchdog.ps1</code> draws it. Clean seam. The tailnet (SSH + VNC) stays on every NUC as the manual/emergency path — it costs nothing to keep.
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="monitor">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Watch it, and alert</h2></div>
+    <p>Two layers of "keep it running," because they catch different failures — plus one honest caveat about what Greengrass can and can't see on this fleet.</p>
+    <h3>Session-level (watchdog.ps1) — already built</h3>
+    <p>The app process belongs to the watchdog, not to Greengrass, so crash/hang recovery is already handled locally in holly's session — the layer a session-0 service can never reach.</p>
+    <h3>Device-level (Greengrass)</h3>
+    <p>Because the app isn't a Greengrass-run process, Greengrass reports <strong>device connectivity and deployment health</strong>, not app state: NUC offline, deployment failed, core device unhealthy. Wire CloudWatch alarms (or Fleet Hub) on those and you get paged when a NUC drops off, instead of discovering it on a VNC check.</p>
+    <h3>Closing the gap: a heartbeat component</h3>
+    <p>To get <em>app</em> state into the cloud too, add one tiny Greengrass component that runs fine in session 0: every minute, read the tail of <code class="inline">C:\Watchdog\qtbrowser-watchdog.log</code> (or a status file the watchdog writes) and publish an MQTT heartbeat to IoT Core. Alarm on missed heartbeats and on restart-storm log lines. That gives you "the browser has been crash-looping on HOLLY-002 since 09:14" without the GUI ever leaving the local session.</p>
+    <div class="note tip"><span class="lab">Minimal-cloud option</span> If you skip Greengrass entirely, the same result is a simple heartbeat POST from the watchdog to any endpoint you own, plus Tailscale's own device-offline signal. The display/schedule layer doesn't change at all.</div>
+  </section>
+
+  <!-- 9 -->
+  <section id="provision">
+    <div class="sec-head"><span class="sec-num">09</span><h2>Provisioning a new NUC, end to end</h2></div>
+    <p>The README in <code class="inline">pc-setup</code> is the authoritative step-by-step; this is the same flow with the Greengrass and watchdog steps slotted in. Only the PC number changes per device.</p>
+
+    <ol class="steps">
+      <li>
+        <div class="st-title">Windows OOBE, offline</div>
+        <p>No wifi at any point. Offline account, username <code class="inline">holly</code>, password <code class="inline">holly</code>. (<code class="inline">OOBE\BYPASSNRO</code> via <code class="inline">Shift+F10</code> if Windows blocks the offline path.) Then plug in ethernet at the desktop.</p>
+      </li>
+      <li>
+        <div class="st-title">Run setup.ps1</div>
+        <div class="code">
+          <div class="bar"><span class="lang">Terminal (admin)</span><button onclick="cp(this)">Copy</button></div>
+<pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+cd C:\Users\holly\Downloads
+.\setup.ps1 <span class="k">-PCNumber</span> 004 <span class="k">-AuthKey</span> <span class="s">"tskey-auth-..."</span> `
+  <span class="k">-AwsAccessKey</span> <span class="s">"AKIA..."</span> <span class="k">-AwsSecretKey</span> <span class="s">"..."</span></pre>
+        </div>
+        <p>15–30 minutes. This is everything: provisioning, watchdog registration (§21), and Greengrass enrolment as <code class="inline">holly-004</code> (§22 — the AWS keys are used for enrolment then cleared). Reboot when asked, then run Windows Update to completion.</p>
+      </li>
+      <li>
+        <div class="st-title">Verify it's on both consoles</div>
+        <p>From your Mac: <code class="inline">holly-004</code> appears in the Tailscale admin console tagged <code class="inline">holly-pc</code> (and VNC/SSH work over the tailnet IP), and shows <strong>Healthy</strong> under Greengrass → Core devices.</p>
+      </li>
+      <li>
+        <div class="st-title">Confirm the app arrived, and test it</div>
+        <p>Joining <code class="inline">holly-fleet</code> pulls the fleet's current deployment automatically — <code class="inline">C:\code\holly</code> appears within a few minutes (or run <code class="inline">./publish.sh</code> for a fresh release). Then a manual <code class="inline">uv run holly</code> in <code class="inline">C:\code\holly\projects\holly-local</code> to confirm it runs end-to-end.</p>
+      </li>
+      <li>
+        <div class="st-title">OBS + devices</div>
+        <p>OBS first-run wizard → "I will only be using the virtual camera". Device Manager → disable built-in mics, speakers, and webcam.</p>
+      </li>
+      <li>
+        <div class="st-title">Reboot test &amp; label</div>
+        <p>Restart. Expected with zero intervention: holly's desktop appears (no login prompt), the watchdog starts and — if inside kiosk hours — launches the app, OBS virtual camera is active, and the device shows online in both Tailscale and Greengrass. Label the box <code class="inline">HOLLY-004</code>.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 10 -->
+  <section id="verify">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Before you commit</h2></div>
+    <table class="kv">
+      <tr><td>Scale fit</td><td>Greengrass is adopted from the start as a deliberate "have it before we need it" bet: at three devices its wins are versioned releases, offline self-update, and alerting; staged rollouts and fleet auditing start paying off as the fleet grows.</td></tr>
+      <tr><td>Windows ≠ Linux</td><td>Greengrass is happiest on Linux; on Windows it's supported but fiddlier. If these could ever become Linux devices, the whole stack lightens and <strong>balena</strong> becomes a strong, purpose-built alternative worth pricing against AWS.</td></tr>
+      <tr><td>The hard boundary</td><td>No tool removes the session-0 rule. The visible, scheduled, monitor-2 launch is local under every architecture — on this fleet that's <code class="inline">watchdog.ps1</code>. Greengrass only ever owns the delivery and monitoring layer around it.</td></tr>
+      <tr><td>Validate once</td><td>Sections §21/§22 of <code class="inline">setup.ps1</code> and <code class="inline">publish.sh</code> are new and untested on hardware — run the full flow on one NUC end-to-end (enrol → publish → code lands → watchdog launches it) before doing the rest of the fleet.</td></tr>
+      <tr><td>Docs drift</td><td>Confirm current Greengrass v2 Windows feature support, installer flags, and recipe syntax in AWS's docs — these shift between releases (e.g. the Corretto winget package id and the PsExec credential step).</td></tr>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Holly Fleet Runbook · matches the pc-setup repo · adapt account details to your AWS setup.</span>
+    <span class="mono">watchdog is local · greengrass is cloud · they meet at C:\code\holly</span>
+  </div>
+</footer>
+
+<script>
+  function cp(btn){
+    const pre = btn.closest('.code').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const old = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(()=>btn.textContent = old, 1400);
+    }).catch(()=>{ btn.textContent='Ctrl+C'; });
+  }
+</script>
+</body>
+</html>

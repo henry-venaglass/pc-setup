@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holly PC Setup — Simple Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15181C; --paper:#E7E8E4; --panel:#F3F3F0;
+    --line:#C9CBC4; --line-soft:#D9DAD4; --muted:#5B6168;
+    --amber:#E8932B; --amber-deep:#C5761A;
+    --healthy:#3F8F6B; --warn:#C24A38; --cloud:#2E6E8E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",sans-serif;font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px;}
+  header{background:var(--ink);color:#EDEEEA;padding:56px 0 48px;border-bottom:3px solid var(--amber);}
+  header .tag{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);}
+  header h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(32px,6vw,52px);line-height:1.05;margin:14px 0 14px;letter-spacing:-.02em;}
+  header p{color:#B9BDB7;font-size:18px;max-width:56ch;margin:0;}
+  main{padding:16px 0 80px;}
+  section{padding:44px 0 4px;border-bottom:1px solid var(--line-soft);}
+  section:last-of-type{border-bottom:none;}
+  h2{font-family:"Space Grotesk",sans-serif;font-size:26px;margin:0 0 12px;letter-spacing:-.01em;}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--amber);font-size:16px;font-family:"IBM Plex Mono",monospace;margin-right:12px;vertical-align:-6px;}
+  p{margin:12px 0;}
+  strong{font-weight:600;}
+  code.inline{font-family:"IBM Plex Mono",monospace;font-size:.85em;background:#DEDFD9;padding:1px 6px;border-radius:4px;}
+  ul.plain{padding-left:22px;margin:12px 0;}
+  ul.plain li{margin:8px 0;}
+
+  .does{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0;}
+  .does .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px 18px 14px;}
+  .does .card h3{font-family:"Space Grotesk",sans-serif;font-size:17px;margin:0 0 6px;}
+  .does .card p{margin:0;font-size:15px;color:#3a3f45;}
+  .does .card .emoji{font-size:22px;display:block;margin-bottom:8px;}
+
+  .code{margin:18px 0;border-radius:6px;background:var(--ink);overflow:hidden;border:1px solid #2c3138;}
+  .code .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1b1f24;border-bottom:1px solid #2c3138;}
+  .code .bar span{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:#7E858C;text-transform:uppercase;}
+  .code .bar button{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#B9BDB7;background:transparent;border:1px solid #353b42;border-radius:4px;padding:3px 10px;cursor:pointer;text-transform:uppercase;}
+  .code .bar button:hover{color:var(--amber);border-color:var(--amber);}
+  .code pre{margin:0;padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.7;color:#DCDED8;}
+  .code pre .hl{color:var(--amber);}
+
+  table.args{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px;}
+  table.args td{border-bottom:1px solid var(--line-soft);padding:9px 10px;vertical-align:top;}
+  table.args td:first-child{font-family:"IBM Plex Mono",monospace;font-size:13px;white-space:nowrap;color:var(--amber-deep);font-weight:600;}
+
+  a.dl{display:inline-block;background:var(--ink);color:var(--amber);font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:17px;text-decoration:none;padding:12px 22px;border-radius:6px;border:2px solid var(--amber);}
+  a.dl:hover{background:var(--amber);color:var(--ink);}
+
+  .note{border-left:3px solid var(--cloud);background:#EAF1F4;padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:15px;}
+  .note.good{border-left-color:var(--healthy);background:#E9F3EE;}
+  .note.warn{border-left-color:var(--warn);background:#F7ECE9;}
+
+  ol.checks{padding-left:24px;margin:14px 0;}
+  ol.checks li{margin:10px 0;}
+
+  footer{background:var(--ink);color:#9aa0a6;padding:32px 0;font-size:13px;text-align:center;}
+  @media(max-width:600px){.does{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tag">Holly fleet · simple guide</div>
+    <h1>Setting up a new Holly PC</h1>
+    <p>One script does everything. You type one command, wait about 20 minutes, and a fresh NUC becomes a fully working Holly kiosk PC. This page explains what it does and exactly how to run it.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <h2><span class="n">1</span>What the script actually does</h2>
+    <p>You run <code class="inline">setup.ps1</code> once on a brand-new PC. In plain terms it does five jobs:</p>
+    <div class="does">
+      <div class="card"><span class="emoji">🧹</span><h3>Cleans up Windows</h3><p>Removes the junk apps, ads, OneDrive, Cortana — everything that gets in the way of a kiosk.</p></div>
+      <div class="card"><span class="emoji">🔒</span><h3>Locks it down</h3><p>Names the PC HOLLY-xxx, makes it log in by itself, turns off wifi and Bluetooth, stops Windows interrupting.</p></div>
+      <div class="card"><span class="emoji">🛠️</span><h3>Installs the tools</h3><p>Tailscale (remote network), VNC (see the screen remotely), SSH (remote terminal), OBS, git, and uv (runs the app).</p></div>
+      <div class="card"><span class="emoji">🐕</span><h3>Sets up the watchdog</h3><p>A little guardian that opens the app at 08:30, closes it at 18:00 (weekdays only), and restarts it in seconds if it ever crashes or freezes.</p></div>
+      <div class="card" style="grid-column:1/-1;"><span class="emoji">☁️</span><h3>Connects it to AWS</h3><p>The PC joins the fleet and pulls the app code down by itself — you never copy code onto it. Later, one command on the Mac (<code class="inline">./publish.sh</code>) updates every PC in the fleet at once.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>What you need before you start</h2>
+    <ul class="plain">
+      <li>The NUC with power, monitor, keyboard, mouse, and an <strong>ethernet cable</strong> (never wifi)</li>
+      <li><code class="inline">setup.ps1</code> — download it straight from this page in step 4 (or bring it on a USB stick)</li>
+      <li>This PC's number — e.g. <code class="inline">004</code></li>
+      <li>The <strong>Tailscale key</strong> (starts <code class="inline">tskey-auth-…</code>) — from the Tailscale admin console</li>
+      <li>The <strong>AWS key pair</strong> (starts <code class="inline">AKIA…</code> plus its secret) — same one for every PC, used only during setup and wiped from the PC afterwards</li>
+      <li>A label maker</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>First: get through Windows setup, offline</h2>
+    <p>Power on. When Windows asks about the internet, click <strong>"I don't have internet"</strong> — do not connect to anything yet. If Windows refuses to continue, press <code class="inline">Shift+F10</code>, type <code class="inline">OOBE\BYPASSNRO</code>, press Enter, and carry on offline.</p>
+    <ul class="plain">
+      <li>Username: <code class="inline">holly</code> (all lowercase) · Password: <code class="inline">holly</code></li>
+      <li>Security questions: answer <code class="inline">holly</code> to all three</li>
+      <li>Say <strong>No</strong> to every privacy question</li>
+    </ul>
+    <p>Once you reach the desktop, <strong>plug in the ethernet cable</strong>.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Get the script, then run it</h2>
+    <p>On the new PC, open this page in the browser and click:</p>
+    <p><a class="dl" href="setup.ps1" download="setup.ps1">⬇&nbsp; Download setup.ps1</a></p>
+    <p style="font-size:14px;color:var(--muted);margin-top:-4px;">(If it opens as text instead of downloading, right-click the button → <em>Save link as…</em> Make sure it ends up in the <strong>Downloads</strong> folder. USB stick works too.)</p>
+    <p>Then right-click the Start button → <strong>Terminal (Admin)</strong>, and run these three lines, one at a time:</p>
+    <div class="code">
+      <div class="bar"><span>Terminal (Admin)</span><button onclick="cp(this)">Copy</button></div>
+<pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+cd C:\Users\holly\Downloads
+.\setup.ps1 -PCNumber <span class="hl">004</span> -AuthKey <span class="hl">"tskey-auth-..."</span> -AwsAccessKey <span class="hl">"AKIA..."</span> -AwsSecretKey <span class="hl">"..."</span></pre>
+    </div>
+    <p>The four highlighted bits are the only things you ever change:</p>
+    <table class="args">
+      <tr><td>-PCNumber</td><td>This PC's number. <strong>The only value that's different per PC.</strong></td></tr>
+      <tr><td>-AuthKey</td><td>The Tailscale key. Same for every PC (until it expires).</td></tr>
+      <tr><td>-AwsAccessKey</td><td rowspan="2">The AWS key pair. Same for every PC. Only used during setup, then wiped from the machine.</td></tr>
+      <tr><td>-AwsSecretKey</td></tr>
+    </table>
+    <p>It takes <strong>15–30 minutes</strong> and prints what it's doing as it goes. At the end it shows a summary — you want <strong style="color:var(--healthy)">READY</strong> (a few warnings are usually fine; failures are not). Say <strong>yes</strong> when it asks to reboot.</p>
+    <div class="note">After the reboot, open <strong>Settings → Windows Update</strong> and keep installing updates + rebooting until there's nothing left.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Check it worked</h2>
+    <p>From your Mac (not the NUC):</p>
+    <ol class="checks">
+      <li><strong>Tailscale admin console</strong> — <code class="inline">holly-004</code> is listed and online</li>
+      <li><strong>AWS console → IoT Core → Greengrass → Core devices</strong> — <code class="inline">holly-004</code> says <strong style="color:var(--healthy)">Healthy</strong></li>
+      <li>Wait a few minutes — the app code appears on the PC at <code class="inline">C:\code\holly</code> by itself</li>
+    </ol>
+    <p>Then two small manual jobs on the NUC:</p>
+    <ol class="checks">
+      <li>Open <strong>OBS</strong> once → choose <em>"I will only be using the virtual camera"</em> → accept defaults</li>
+      <li>Open <strong>Device Manager</strong> → disable the built-in microphones, speakers, and webcam</li>
+    </ol>
+    <p>Finally, <strong>restart the PC</strong> and just watch. It should log itself in with no password, and — if it's a weekday between 08:30 and 18:00 — the app should appear on its own within a minute or so. Stick a <code class="inline">HOLLY-004</code> label on the bottom of the box. Done.</p>
+    <div class="note good"><strong>That's the whole job.</strong> No copying code, no configuring schedules, no setting up the app — the script and AWS handle all of it.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>Everyday stuff, after setup</h2>
+    <p><strong>To update the app on every PC:</strong> on the Mac, run <code class="inline">./publish.sh</code>. All PCs download the new version themselves — even ones that are off catch up when they come back. The running app switches to the new code the next time it starts (tomorrow 08:30, or close it once and the watchdog reopens it on the new version).</p>
+    <p><strong>To look at a PC remotely:</strong> TightVNC Viewer to its tailnet address (see the screen), or SSH (terminal).</p>
+    <p><strong>If the app crashes mid-day:</strong> nothing to do — the watchdog restarts it within seconds.</p>
+    <div class="note warn"><strong>If something goes wrong during setup:</strong> the script prints a summary of exactly what failed, and saves a log on the Desktop. Fix the issue (usually network) and just run the same command again — it's safe to re-run.</div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">Want the full detail? <a href="https://github.com/henry-venaglass/pc-setup" style="color:#B9BDB7;">the repo README</a> has the step-by-step · <a href="fleet-runbook.html" style="color:#B9BDB7;">fleet-runbook.html</a> has the architecture</div>
+</footer>
+
+<script>
+  function cp(btn){
+    const pre = btn.closest('.code').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(()=>{
+      const old = btn.textContent; btn.textContent='Copied';
+      setTimeout(()=>btn.textContent=old,1400);
+    }).catch(()=>{ btn.textContent='Ctrl+C'; });
+  }
+</script>
+</body>
+</html>

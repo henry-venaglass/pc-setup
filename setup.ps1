@@ -14,9 +14,14 @@
     2. Plug in ethernet.
     3. Open PowerShell AS ADMINISTRATOR.
     4. If script is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-    5. Run: .\Setup-HollyPC.ps1 -PCNumber 001 -AuthKey "tskey-auth-..."
+    5. Run: .\Setup-HollyPC.ps1 -PCNumber 001 -AuthKey "tskey-auth-..." `
+            -AwsAccessKey "AKIA..." -AwsSecretKey "..."
 
-       (omit -AuthKey to install Tailscale but sign in manually later)
+       (omit -AuthKey to install Tailscale but sign in manually later;
+        omit the AWS keys to skip Greengrass enrolment and do it later)
+
+    The app watchdog is embedded in this script (section 21) - it gets written
+    to C:\code\watchdog.ps1 and registered as a logon task automatically.
 
 .PARAMETER PCNumber
     Three-digit number for this PC, used in hostname HOLLY-NNN. e.g. "001", "002"
@@ -24,6 +29,13 @@
 .PARAMETER AuthKey
     Optional. Tailscale auth key for unattended sign-in. Generate from:
     https://login.tailscale.com/admin/settings/keys (reusable, pre-approved, tagged)
+
+.PARAMETER AwsAccessKey
+    Optional. Temporary AWS access key used ONLY during Greengrass enrolment,
+    then cleared. If omitted (with -AwsSecretKey), Greengrass enrolment is skipped.
+
+.PARAMETER AwsSecretKey
+    Optional. The matching AWS secret key. See -AwsAccessKey.
 #>
 
 param(
@@ -33,6 +45,12 @@ param(
 
     [Parameter(Mandatory=$false)]
     [string]$AuthKey = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$AwsAccessKey = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$AwsSecretKey = "",
 
     [Parameter(Mandatory=$false)]
     [switch]$Unattended
@@ -61,6 +79,17 @@ $TailscaleAuthKey  = $AuthKey
 # Generate on the Mac:  ssh-keygen -t ed25519 -f ~/.ssh/fleet_deploy -C "fleet-deploy"
 # then paste the one-line contents of fleet_deploy.pub below.
 $DeployPublicKey   = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
+
+# ----- AWS IoT Greengrass (ADDED) -----
+# The fleet management layer: delivers versioned code (publish.sh on the Mac
+# replaces the old push.sh/scp), and reports device health to AWS. Enrolment
+# runs only when -AwsAccessKey/-AwsSecretKey are passed. Greengrass only ever
+# delivers files - the visible app launch belongs to watchdog.ps1 (section 21),
+# because Greengrass runs as a service in session 0 and can't paint on screen.
+$AwsRegion  = "eu-west-2"          # match where the agent is hosted
+$ThingName  = "holly-$PCNumber"    # AWS Thing name - matches the tailnet name
+$ThingGroup = "holly-fleet"        # deployments target this group
+$GgcUser    = "ggc_user"           # local account Greengrass runs components as
 
 # ============================================================================
 # PRE-FLIGHT
@@ -682,97 +711,13 @@ Try-Step "Time sync configured" {
 }
 
 # ============================================================================
-# 18. CURSOR AUTO-HIDE (AutoHotkey)
+# 18. (REMOVED) CURSOR AUTO-HIDE
 # ============================================================================
-Write-Step "Setting up cursor auto-hide"
-
-Try-Step "AutoHotkey installed" -WarnOnFail {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget not available" }
-    $null = winget install --id AutoHotkey.AutoHotkey --source winget --silent --accept-package-agreements --accept-source-agreements 2>&1
-    Start-Sleep -Seconds 2
-}
-
-$ahkExeCandidates = @(
-    "${env:ProgramFiles}\AutoHotkey\v2\AutoHotkey64.exe",
-    "${env:ProgramFiles}\AutoHotkey\AutoHotkey64.exe",
-    "${env:LOCALAPPDATA}\Programs\AutoHotkey\v2\AutoHotkey64.exe",
-    "$env:USERPROFILE\AppData\Local\Programs\AutoHotkey\v2\AutoHotkey64.exe"
-)
-$ahkExe = $ahkExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-$ahkScript = @'
-; Hide cursor after 3 seconds of inactivity. Show again on any mouse movement.
-#Requires AutoHotkey v2.0
-#SingleInstance Force
-
-idleTimeout := 3000
-hidden := false
-
-SetTimer(CheckIdle, 500)
-
-CheckIdle() {
-    global hidden, idleTimeout
-    if (A_TimeIdleMouse > idleTimeout && !hidden) {
-        SystemCursor("Off")
-        hidden := true
-    } else if (A_TimeIdleMouse < 500 && hidden) {
-        SystemCursor("On")
-        hidden := false
-    }
-}
-
-SystemCursor(cmd) {
-    static cursors := Map(), handles := [32512, 32513, 32514, 32515, 32516, 32642, 32643,
-                                          32644, 32645, 32646, 32648, 32649, 32650, 32651]
-    if (cursors.Count = 0) {
-        for h in handles {
-            cursors[h] := DllCall("CopyImage", "Ptr", DllCall("LoadCursor", "Ptr", 0, "Ptr", h, "Ptr"),
-                                  "UInt", 2, "Int", 0, "Int", 0, "UInt", 0, "Ptr")
-        }
-    }
-    if (cmd = "Off") {
-        for h in handles {
-            blank := DllCall("CreateCursor", "Ptr", 0, "Int", 0, "Int", 0,
-                             "Int", 32, "Int", 32,
-                             "Ptr", Buffer(128, 0xFF).Ptr,
-                             "Ptr", Buffer(128, 0x00).Ptr, "Ptr")
-            DllCall("SetSystemCursor", "Ptr", blank, "UInt", h)
-        }
-    } else {
-        for h, original in cursors {
-            copy := DllCall("CopyImage", "Ptr", original, "UInt", 2, "Int", 0, "Int", 0, "UInt", 0, "Ptr")
-            DllCall("SetSystemCursor", "Ptr", copy, "UInt", h)
-        }
-    }
-}
-'@
-
-$ahkPath = "C:\code\hide-cursor.ahk"
-Try-Step "AHK script file written to $ahkPath" {
-    # UTF-8 without BOM (AHK sometimes chokes on BOM)
-    [System.IO.File]::WriteAllText($ahkPath, $ahkScript, [System.Text.UTF8Encoding]::new($false))
-}
-
-$hollyStartup = "C:\Users\holly\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-Try-Step "Cursor auto-hide startup shortcut created" -WarnOnFail {
-    if (-not $ahkExe) { throw "AutoHotkey64.exe not found - install may have failed" }
-    if (-not (Test-Path $hollyStartup)) { throw "holly's Startup folder not found - profile may not exist yet" }
-
-    # Remove old broken .ahk file from previous script versions
-    $oldDirectPath = "$hollyStartup\hide-cursor.ahk"
-    if (Test-Path $oldDirectPath) { Remove-Item $oldDirectPath -Force -ErrorAction SilentlyContinue }
-
-    $shortcutPath = "$hollyStartup\hide-cursor.lnk"
-    $shell = New-Object -ComObject WScript.Shell
-    $sc = $shell.CreateShortcut($shortcutPath)
-    $sc.TargetPath = $ahkExe
-    $sc.Arguments = "`"$ahkPath`""
-    $sc.WorkingDirectory = "C:\code"
-    $sc.WindowStyle = 7
-    $sc.Description = "Auto-hide cursor when idle"
-    $sc.Save()
-    Write-Detail "Shortcut points at: $ahkExe"
-}
+# Removed 2026-07: the app hides the cursor itself, and the system-wide
+# invisible cursor made remote VNC sessions painful. On PCs provisioned before
+# this, undo it by deleting "hide-cursor.lnk" from holly's Startup folder
+# (C:\Users\holly\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup)
+# plus C:\code\hide-cursor.ahk, then rebooting.
 
 # ============================================================================
 # 19. TAILSCALE AUTO-CONNECT (if auth key provided) + SERVICE CONFIG
@@ -846,6 +791,279 @@ if ($btDevices.Count -eq 0) {
     Record-Pass "Bluetooth disabled ($btDisabled of $($btDevices.Count) devices)"
 } else {
     Record-Fail "Bluetooth disable failed (0 of $($btDevices.Count) devices disabled)"
+}
+
+# ============================================================================
+# 21. WATCHDOG INSTALL + AUTO-START (ADDED)
+# ============================================================================
+# Writes the embedded watchdog script to C:\code\watchdog.ps1 and registers it
+# as a logon task for holly. The watchdog owns the kiosk window: launches the
+# app 08:30-18:00 Mon-Fri, restarts it on crash/hang, closes it outside those
+# hours. It must run in holly's *interactive* session - the one thing no
+# service (including Greengrass, which lives in session 0) can ever do.
+#
+# The here-string below IS the watchdog - edit it here, then update
+# C:\code\watchdog.ps1 on already-provisioned PCs (SSH) and restart the task.
+# Single-quoted here-string: nothing inside is expanded by this script.
+$WatchdogScript = @'
+<#
+.SYNOPSIS
+  Scheduled watchdog for a CLI-launched Qt browser.
+  - Runs the browser only 08:30-18:00, Mon-Fri.
+  - Restarts it if it exits, crashes, or (optionally) hangs during that window.
+  - Closes it outside the window.
+  Designed to run continuously in the interactive user session.
+  (Source of truth: the here-string in setup.ps1 section 21.)
+#>
+
+param(
+    [string]$ExePath   = "uv",
+    [string[]]$Arguments = @("run", "holly"),
+
+    # Directory to run the command from (the path you normally cd into)
+    [string]$WorkDir   = "C:\code\holly\projects\holly-local",
+
+    # Active window (24h). Browser runs only inside this, on weekdays.
+    [string]$StartTime = "08:30",
+    [string]$EndTime   = "18:00",
+
+    [int]$PollSeconds = 3,
+
+    [switch]$DetectHang,
+    [int]$HangGraceSeconds = 30,
+
+    [int]$MaxRestarts = 5,
+    [int]$RestartWindowSeconds = 60,
+    [int]$BackoffSeconds = 60,
+
+    [string]$LogPath = "C:\Watchdog\qtbrowser-watchdog.log"
+)
+
+$ErrorActionPreference = 'Stop'
+
+$logDir = Split-Path -Parent $LogPath
+if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+
+function Write-Log {
+    param([string]$Message, [string]$Level = 'INFO')
+    $line = "{0}  [{1}]  {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
+    try { Add-Content -Path $LogPath -Value $line } catch {}
+    Write-Host $line
+}
+
+function In-ActiveWindow {
+    $now = Get-Date
+    if ($now.DayOfWeek -eq 'Saturday' -or $now.DayOfWeek -eq 'Sunday') { return $false }
+    $start = [datetime]::ParseExact($StartTime, 'HH:mm', $null)
+    $end   = [datetime]::ParseExact($EndTime,   'HH:mm', $null)
+    $start = [datetime]::Today.Add($start.TimeOfDay)
+    $end   = [datetime]::Today.Add($end.TimeOfDay)
+    return ($now -ge $start -and $now -lt $end)
+}
+
+function Stop-Tree {
+    param([int]$ProcId)
+    try { Start-Process taskkill -ArgumentList "/PID $ProcId /T /F" -Wait -NoNewWindow -ErrorAction SilentlyContinue } catch {}
+}
+
+function Stop-Target {
+    param($Proc)
+    if ($null -eq $Proc) { return }
+    try { $Proc.Refresh(); if ($Proc.HasExited) { return } } catch { return }
+    Write-Log "Closing browser (PID $($Proc.Id)) - outside active hours."
+    try { $Proc.CloseMainWindow() | Out-Null } catch {}
+    Start-Sleep -Seconds 5
+    try { $Proc.Refresh(); if (-not $Proc.HasExited) { Stop-Tree -ProcId $Proc.Id } } catch { Stop-Tree -ProcId $Proc.Id }
+}
+
+function Start-Target {
+    Write-Log "Launching: `"$ExePath`" $($Arguments -join ' ')"
+    try {
+        $p = Start-Process -FilePath $ExePath -ArgumentList $Arguments -WorkingDirectory $WorkDir -PassThru
+        Start-Sleep -Milliseconds 500
+        Write-Log "Started. PID: $($p.Id)"
+        return $p
+    } catch {
+        Write-Log "Failed to launch: $($_.Exception.Message)" 'ERROR'
+        return $null
+    }
+}
+
+Write-Log "===== Watchdog starting ====="
+Write-Log "Target: $ExePath $($Arguments -join ' ') | WorkDir: $WorkDir | Hours: $StartTime-$EndTime Mon-Fri | HangDetect: $DetectHang"
+if (($ExePath -match '[\\/:]') -and -not (Test-Path $ExePath)) { Write-Log "Executable not found: $ExePath" 'ERROR'; exit 1 }
+
+# Don't exit if the app folder isn't there yet - on a fresh PC the watchdog
+# starts at logon while the first Greengrass deployment may still be
+# downloading the code. Wait for it instead, so registration order never matters.
+if (-not (Test-Path $WorkDir)) {
+    Write-Log "Working directory not found: $WorkDir - waiting for it to appear (first deployment may still be downloading)" 'WARN'
+    while (-not (Test-Path $WorkDir)) { Start-Sleep -Seconds 30 }
+    Write-Log "Working directory appeared: $WorkDir"
+}
+
+$restartTimes = @()
+$proc = $null
+
+while ($true) {
+    Start-Sleep -Seconds $PollSeconds
+
+    if (-not (In-ActiveWindow)) {
+        if ($proc) { Stop-Target -Proc $proc; $proc = $null; $restartTimes = @() }
+        continue
+    }
+
+    # ---- inside active hours: keep it running ----
+    if ($proc) { try { $proc.Refresh() } catch {} }
+
+    $needsRestart = $false; $reason = ''
+
+    if ($null -eq $proc -or $proc.HasExited) {
+        $needsRestart = $true
+        $code = 'n/a'; if ($proc) { try { $code = $proc.ExitCode } catch { $code = 'unknown' } }
+        $reason = "not running (exit code: $code)"
+    }
+    elseif ($DetectHang -and $proc.MainWindowHandle -ne 0 -and -not $proc.Responding) {
+        $stillHung = $true; $deadline = (Get-Date).AddSeconds($HangGraceSeconds)
+        while ((Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 2
+            try { $proc.Refresh() } catch {}
+            if ($proc.HasExited)  { $stillHung = $false; break }
+            if ($proc.Responding) { $stillHung = $false; break }
+        }
+        if ($stillHung -and -not $proc.HasExited) {
+            Write-Log "Window unresponsive for ${HangGraceSeconds}s. Killing PID $($proc.Id)." 'WARN'
+            Stop-Tree -ProcId $proc.Id; $needsRestart = $true; $reason = "window hung"
+        }
+    }
+
+    if ($needsRestart) {
+        Write-Log "Restart triggered: $reason" 'WARN'
+        $now = Get-Date
+        $restartTimes += $now
+        $cutoff = $now.AddSeconds(-$RestartWindowSeconds)
+        $restartTimes = @($restartTimes | Where-Object { $_ -ge $cutoff })
+        if ($restartTimes.Count -gt $MaxRestarts) {
+            Write-Log ("Restart storm: {0} in {1}s. Backing off {2}s." -f $restartTimes.Count, $RestartWindowSeconds, $BackoffSeconds) 'ERROR'
+            Start-Sleep -Seconds $BackoffSeconds; $restartTimes = @()
+        }
+        $proc = Start-Target
+    }
+}
+'@
+
+Write-Step "Installing app watchdog + logon task"
+
+Try-Step "watchdog.ps1 written to C:\code" {
+    Set-Content -Path "C:\code\watchdog.ps1" -Value $WatchdogScript -Encoding UTF8 -Force -ErrorAction Stop
+}
+
+Try-Step "Holly-Watchdog logon task registered" {
+    $wdAction = New-ScheduledTaskAction -Execute "powershell.exe" `
+        -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog.ps1'
+    $wdTrigger = New-ScheduledTaskTrigger -AtLogOn -User "holly"
+    # Interactive = anything it launches paints on holly's real desktop
+    $wdPrincipal = New-ScheduledTaskPrincipal -UserId "holly" -LogonType Interactive
+    # ExecutionTimeLimit 0 = never kill it (Task Scheduler default is 72h);
+    # restart settings relaunch the watchdog itself if it ever dies
+    $wdSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `
+        -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+        -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName "Holly-Watchdog" -Action $wdAction -Trigger $wdTrigger `
+        -Principal $wdPrincipal -Settings $wdSettings -Force -ErrorAction Stop | Out-Null
+}
+
+# ============================================================================
+# 22. AWS IOT GREENGRASS ENROLMENT (ADDED) - replaces scp deploys
+# ============================================================================
+# Registers this NUC as an AWS IoT Thing, joins it to the fleet group, and
+# installs Greengrass Core as a Windows service. After this, code is released
+# from the Mac with publish.sh (versioned, staged, pull-based). A newly
+# enrolled device automatically pulls the group's current deployment.
+if ($AwsAccessKey -and $AwsSecretKey) {
+    Write-Step "Enrolling into AWS IoT Greengrass as $ThingName"
+
+    # Greengrass Core runs on the JVM
+    Try-Step "Amazon Corretto JRE installed" {
+        $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $java) {
+            $null = winget install --id Amazon.Corretto.11.JRE --source winget --silent --accept-package-agreements --accept-source-agreements 2>&1
+            $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        }
+        if (-not $java) { throw "java.exe not found after Corretto install" }
+        $script:JavaExe = $java.FullName
+        Write-Detail "java: $($script:JavaExe)"
+    }
+
+    # Component user: Greengrass runs deployed lifecycle steps as this local
+    # account - never as holly, so components can't touch the kiosk session.
+    # Password is random and never needed again (stored below for the service).
+    Try-Step "Component user '$GgcUser' created" {
+        $ggcPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 24 | ForEach-Object { [char]$_ })
+        if (Get-LocalUser -Name $GgcUser -ErrorAction SilentlyContinue) {
+            net user $GgcUser $ggcPassword | Out-Null   # reset so the stored credential below matches
+        } else {
+            net user $GgcUser $ggcPassword /add | Out-Null
+        }
+        if ($LASTEXITCODE -ne 0) { throw "net user returned exit code $LASTEXITCODE" }
+        Set-LocalUser -Name $GgcUser -PasswordNeverExpires $true -ErrorAction Stop
+        $script:GgcPassword = $ggcPassword
+    }
+
+    # The Greengrass service runs as SYSTEM and reads the component user's
+    # password from SYSTEM's credential store - so cmdkey must run *as SYSTEM*,
+    # which needs PsExec (Sysinternals).
+    Try-Step "Component user credential stored for the Greengrass service" {
+        $psToolsZip = "$env:TEMP\PSTools.zip"
+        $psToolsDir = "$env:TEMP\PSTools"
+        Invoke-WebRequest -Uri "https://download.sysinternals.com/files/PSTools.zip" -OutFile $psToolsZip -UseBasicParsing -ErrorAction Stop
+        Expand-Archive $psToolsZip $psToolsDir -Force
+        & "$psToolsDir\PsExec.exe" -accepteula -nobanner -s cmd /c "cmdkey /generic:$GgcUser /user:$GgcUser /pass:$($script:GgcPassword)" 2>$null
+        if ($LASTEXITCODE -ne 0) { throw "psexec/cmdkey returned exit code $LASTEXITCODE" }
+    }
+
+    # Deployments write the app code into C:\code\holly as ggc_user
+    Try-Step "$GgcUser granted write access to C:\code" {
+        & icacls "C:\code" /grant "${GgcUser}:(OI)(CI)M" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "icacls returned exit code $LASTEXITCODE" }
+    }
+
+    # Download + run the installer. This registers the Thing, creates its
+    # certificate and IAM role, joins the fleet group, and installs the
+    # Windows service in one shot. Only $ThingName differs per device.
+    Try-Step "Greengrass Core installed and enrolled as $ThingName" {
+        $ggZip = "$env:TEMP\greengrass-nucleus.zip"
+        $ggDir = "$env:TEMP\GreengrassInstaller"
+        Invoke-WebRequest -Uri "https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip" -OutFile $ggZip -UseBasicParsing -ErrorAction Stop
+        Expand-Archive $ggZip $ggDir -Force
+
+        $env:AWS_ACCESS_KEY_ID     = $AwsAccessKey
+        $env:AWS_SECRET_ACCESS_KEY = $AwsSecretKey
+        try {
+            & $script:JavaExe "-Droot=C:\greengrass\v2" "-Dlog.store=FILE" `
+                -jar "$ggDir\lib\Greengrass.jar" `
+                --aws-region $AwsRegion `
+                --thing-name $ThingName `
+                --thing-group-name $ThingGroup `
+                --component-default-user $GgcUser `
+                --provision true `
+                --setup-system-service true
+            if ($LASTEXITCODE -ne 0) { throw "Greengrass installer returned exit code $LASTEXITCODE" }
+        } finally {
+            # provisioning keys must not linger on the device
+            Remove-Item Env:\AWS_ACCESS_KEY_ID, Env:\AWS_SECRET_ACCESS_KEY -ErrorAction SilentlyContinue
+        }
+    }
+
+    Try-Step "Greengrass service running with auto-restart" -WarnOnFail {
+        $svc = Get-Service -Name "greengrass" -ErrorAction SilentlyContinue
+        if (-not $svc) { throw "greengrass service not found" }
+        if ($svc.Status -ne "Running") { Start-Service -Name "greengrass" -ErrorAction Stop }
+        & sc.exe failure greengrass reset= 86400 actions= restart/5000/restart/5000/restart/5000 | Out-Null
+    }
+} else {
+    Write-Step "Skipping Greengrass enrolment (no -AwsAccessKey / -AwsSecretKey)"
+    Record-Warn "Greengrass not enrolled - re-run section 22 later with the AWS keys (see fleet-runbook.html)"
 }
 
 # ============================================================================
@@ -927,7 +1145,7 @@ Write-Host ""
 Write-Host "Manual steps remaining:" -ForegroundColor Cyan
 Write-Host "  1. Reboot now (hostname change requires it)"
 Write-Host "  2. After reboot, run Windows Update manually until clean"
-Write-Host "  3. App code is now pushed from the Mac over Tailscale - no GitHub clone needed"
+Write-Host "  3. App code arrives via Greengrass - release with publish.sh from the Mac"
 if (-not $TailscaleAuthKey) {
     Write-Host "  4. Sign in to Tailscale: tailscale up --unattended --hostname=$NewHostname"
 }
