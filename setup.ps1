@@ -94,13 +94,17 @@ $NewHostname       = "HOLLY-$PCNumber"
 # If you omit -AuthKey, the script will install Tailscale but you'll need to sign in manually.
 $TailscaleAuthKey  = $AuthKey
 
-# ----- Deploy key (ADDED) -----
-# PUBLIC half of your Mac's SSH key (~/.ssh/fleet_deploy.pub). Safe to keep in this file -
-# public keys are not secret. It authorizes your Mac to push setup scripts and updates to
-# this NUC over the tailnet via SSH, so you never clone from GitHub on the device.
-# Generate on the Mac:  ssh-keygen -t ed25519 -f ~/.ssh/fleet_deploy -C "fleet-deploy"
-# then paste the one-line contents of fleet_deploy.pub below.
-$DeployPublicKey   = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
+# ----- Deploy keys (ADDED) -----
+# PUBLIC halves of the SSH keys (~/.ssh/fleet_deploy.pub) from the machines
+# allowed to push to this NUC over the tailnet (MacBook + Mac mini). Safe to
+# keep in this file - public keys are not secret. Keep this list in sync with
+# ssh_script.ps1. To add another machine, generate on it:
+#   ssh-keygen -t ed25519 -f ~/.ssh/fleet_deploy -C "fleet-deploy"
+# then add the one-line contents of fleet_deploy.pub below.
+$DeployPublicKey   = @(
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPUoRwbcyxf+RYrOCIy8QtlA/XJE47E4WtjS/ijQZ9xV fleet-deploy"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVVR3cXtI2JmniyxsMkTALvsUuBGExVU8T5tvf5yuZD fleet_deploy"
+)
 
 # ----- AWS IoT Greengrass (ADDED) -----
 # The fleet management layer: delivers versioned code (publish.sh on the Mac
@@ -566,23 +570,25 @@ Try-Step "Firewall rule for sshd (port 22) present" -WarnOnFail {
     }
 }
 
-Try-Step "Deploy public key authorized for holly" {
-    if ([string]::IsNullOrWhiteSpace($DeployPublicKey) -or $DeployPublicKey -eq "PASTE_YOUR_PUBLIC_KEY_HERE") {
-        throw "DeployPublicKey not set - paste your Mac's public key into the CONFIG section"
+Try-Step "Deploy public keys authorized for holly" {
+    $keys = @($DeployPublicKey | Where-Object { $_ -and $_.Trim() -and $_ -ne "PASTE_YOUR_PUBLIC_KEY_HERE" })
+    if ($keys.Count -eq 0) {
+        throw "DeployPublicKey not set - paste your Macs' public keys into the CONFIG section"
     }
+    Write-Detail "$($keys.Count) key(s) to authorize"
     $hollyIsAdmin = Get-LocalGroupMember -Group "Administrators" -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -like "*\holly" }
     if ($hollyIsAdmin) {
         # Windows OpenSSH ignores the per-user file for admins; the key MUST go here.
         $akFile = "C:\ProgramData\ssh\administrators_authorized_keys"
-        Set-Content -Path $akFile -Value $DeployPublicKey -Encoding ascii -Force -ErrorAction Stop
+        Set-Content -Path $akFile -Value $keys -Encoding ascii -Force -ErrorAction Stop
         & icacls $akFile /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "icacls failed to lock down $akFile" }
         Write-Detail "Key placed in administrators_authorized_keys (holly is an admin)"
     } else {
         $sshDir = "C:\Users\holly\.ssh"
         if (-not (Test-Path $sshDir)) { New-Item -Path $sshDir -ItemType Directory -Force -ErrorAction Stop | Out-Null }
-        Set-Content -Path "$sshDir\authorized_keys" -Value $DeployPublicKey -Encoding ascii -Force -ErrorAction Stop
+        Set-Content -Path "$sshDir\authorized_keys" -Value $keys -Encoding ascii -Force -ErrorAction Stop
         Write-Detail "Key placed in holly's .ssh\authorized_keys (holly is a standard user)"
     }
 }
