@@ -1,10 +1,16 @@
 <#
 .SYNOPSIS
-  Scheduled watchdog for a CLI-launched Qt browser.
+  Watchdog for the Holly kiosk app (a CLI-launched Qt browser).
   - Runs the browser only 08:30-18:00, Mon-Fri.
   - Restarts it if it exits, crashes, or (optionally) hangs during that window.
   - Closes it outside the window.
-  Designed to run continuously in the interactive user session.
+  - Restarts itself when a new release replaces this file.
+
+  FLEET-MANAGED: publish.sh packs this file into every com.holly.app release,
+  so it lands (and updates) at C:\code\holly\watchdog.ps1 on every PC. It is
+  started and kept alive by C:\code\watchdog-launcher.ps1, the stable shim
+  that setup.ps1 registers as holly's logon task. Edit it here in the repo;
+  the next ./publish.sh rolls it out to the whole fleet.
 #>
 
 param(
@@ -83,13 +89,34 @@ function Start-Target {
 Write-Log "===== Watchdog starting ====="
 Write-Log "Target: $ExePath $($Arguments -join ' ') | WorkDir: $WorkDir | Hours: $StartTime-$EndTime Mon-Fri | HangDetect: $DetectHang"
 if (($ExePath -match '[\\/:]') -and -not (Test-Path $ExePath)) { Write-Log "Executable not found: $ExePath" 'ERROR'; exit 1 }
-if (-not (Test-Path $WorkDir)) { Write-Log "Working directory not found: $WorkDir" 'ERROR'; exit 1 }
+
+# Don't exit if the app folder isn't there yet - on a fresh PC the watchdog
+# starts at logon while the first Greengrass deployment may still be
+# downloading the code. Wait for it instead, so registration order never matters.
+if (-not (Test-Path $WorkDir)) {
+    Write-Log "Working directory not found: $WorkDir - waiting for it to appear (first deployment may still be downloading)" 'WARN'
+    while (-not (Test-Path $WorkDir)) { Start-Sleep -Seconds 30 }
+    Write-Log "Working directory appeared: $WorkDir"
+}
+
+# Self-update: a release replacing this file bumps its timestamp. We notice,
+# close the app, and exit; the launcher immediately starts the new version.
+$selfPath  = $PSCommandPath
+$selfStamp = (Get-Item $selfPath).LastWriteTime
 
 $restartTimes = @()
 $proc = $null
 
 while ($true) {
     Start-Sleep -Seconds $PollSeconds
+
+    $stamp = $selfStamp
+    try { $stamp = (Get-Item $selfPath).LastWriteTime } catch {}
+    if ($stamp -ne $selfStamp) {
+        Write-Log "watchdog.ps1 was replaced by a release - restarting to pick up the new version." 'WARN'
+        if ($proc) { try { $proc.Refresh(); if (-not $proc.HasExited) { Stop-Tree -ProcId $proc.Id } } catch {} }
+        exit 0
+    }
 
     if (-not (In-ActiveWindow)) {
         if ($proc) { Stop-Target -Proc $proc; $proc = $null; $restartTimes = @() }

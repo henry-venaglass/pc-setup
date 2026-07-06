@@ -94,6 +94,7 @@
       <li>The NUC with power, monitor, keyboard, mouse, and an <strong>ethernet cable</strong> (never wifi)</li>
       <li><code class="inline">setup.ps1</code> — download it straight from this page in step 4 (or bring it on a USB stick)</li>
       <li>This PC's number — e.g. <code class="inline">004</code></li>
+      <li>The <strong>fleet password</strong> (ask Henry — it's deliberately not written on this page)</li>
       <li>The <strong>Tailscale key</strong> (starts <code class="inline">tskey-auth-…</code>) — from the Tailscale admin console</li>
       <li>The <strong>AWS key pair</strong> (starts <code class="inline">AKIA…</code> plus its secret) — same one for every PC, used only during setup and wiped from the PC afterwards</li>
       <li>A label maker</li>
@@ -104,8 +105,8 @@
     <h2><span class="n">3</span>First: get through Windows setup, offline</h2>
     <p>Power on. When Windows asks about the internet, click <strong>"I don't have internet"</strong> — do not connect to anything yet. If Windows refuses to continue, press <code class="inline">Shift+F10</code>, type <code class="inline">OOBE\BYPASSNRO</code>, press Enter, and carry on offline.</p>
     <ul class="plain">
-      <li>Username: <code class="inline">holly</code> (all lowercase) · Password: <code class="inline">holly</code></li>
-      <li>Security questions: answer <code class="inline">holly</code> to all three</li>
+      <li>Username: <code class="inline">holly</code> (all lowercase) · Password: the fleet password (ask Henry — it's deliberately not written on this page)</li>
+      <li>Security questions: answer all three with the fleet password</li>
       <li>Say <strong>No</strong> to every privacy question</li>
     </ul>
     <p>Once you reach the desktop, <strong>plug in the ethernet cable</strong>.</p>
@@ -121,11 +122,13 @@
       <div class="bar"><span>Terminal (Admin)</span><button onclick="cp(this)">Copy</button></div>
 <pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\Users\holly\Downloads
-.\setup.ps1 -PCNumber <span class="hl">004</span> -AuthKey <span class="hl">"tskey-auth-..."</span> -AwsAccessKey <span class="hl">"AKIA..."</span> -AwsSecretKey <span class="hl">"..."</span></pre>
+.\setup.ps1 -PCNumber <span class="hl">004</span> -HollyPassword <span class="hl">"..."</span> -AuthKey <span class="hl">"tskey-auth-..."</span> `
+  -AwsAccessKey <span class="hl">"AKIA..."</span> -AwsSecretKey <span class="hl">"..."</span></pre>
     </div>
-    <p>The four highlighted bits are the only things you ever change:</p>
+    <p>The highlighted bits are the only things you ever change:</p>
     <table class="args">
       <tr><td>-PCNumber</td><td>This PC's number. <strong>The only value that's different per PC.</strong></td></tr>
+      <tr><td>-HollyPassword</td><td>The fleet password — the same one you typed during Windows setup in step 3. (Kept off this page on purpose.)</td></tr>
       <tr><td>-AuthKey</td><td>The Tailscale key. Same for every PC (until it expires).</td></tr>
       <tr><td>-AwsAccessKey</td><td rowspan="2">The AWS key pair. Same for every PC. Only used during setup, then wiped from the machine.</td></tr>
       <tr><td>-AwsSecretKey</td></tr>
@@ -153,7 +156,7 @@ cd C:\Users\holly\Downloads
 
   <section>
     <h2><span class="n">6</span>Everyday stuff, after setup</h2>
-    <p><strong>To update the app on every PC:</strong> on the Mac, run <code class="inline">./publish.sh</code>. All PCs download the new version themselves — even ones that are off catch up when they come back. The running app switches to the new code the next time it starts (tomorrow 08:30, or close it once and the watchdog reopens it on the new version).</p>
+    <p><strong>To update the app on every PC:</strong> on the Mac, run <code class="inline">./publish.sh</code>. All PCs download the new version themselves — even ones that are off catch up when they come back. Updates go out gradually and stop themselves automatically if the first few PCs hit a problem, so a bad version can't take out the whole fleet. The running app switches to the new code the next time it starts (tomorrow 08:30, or close it once and the watchdog reopens it on the new version).</p>
     <p><strong>To look at a PC remotely:</strong> TightVNC Viewer to its tailnet address (see the screen), or SSH (terminal).</p>
     <p><strong>If the app crashes mid-day:</strong> nothing to do — the watchdog restarts it within seconds.</p>
     <div class="note warn"><strong>If something goes wrong during setup:</strong> the script prints a summary of exactly what failed, and saves a log on the Desktop. Fix the issue (usually network) and just run the same command again — it's safe to re-run.</div>

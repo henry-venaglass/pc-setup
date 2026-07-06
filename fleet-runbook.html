@@ -208,14 +208,14 @@
     <p>Two scripts in <code class="inline">pc-setup</code> carry the fleet — one you run per NUC, one you run per release — plus the watchdog loop, which lives <em>inside</em> setup.ps1 and gets written onto every PC.</p>
 
     <div class="script-map">
-      <div class="row"><span class="n">setup.ps1</span><div><strong>First-boot provisioning — the one script you run on a PC.</strong> Run once per NUC with <code class="inline">-PCNumber xxx -AuthKey tskey-auth-… -AwsAccessKey … -AwsSecretKey …</code>. Renames the PC to <code class="inline">HOLLY-xxx</code>, configures auto-login as <code class="inline">holly</code>, debloats, installs TightVNC + OpenSSH server, hardens the kiosk, joins the tailnet, disables wifi/BT — then (§21) installs and registers <code class="inline">watchdog.ps1</code> as a logon task, and (§22) enrols the device into Greengrass as <code class="inline">holly-xxx</code> in <code class="inline">holly-fleet</code>. Writes <code class="inline">C:\code\setup-status.json</code>.</div></div>
+      <div class="row"><span class="n">setup.ps1</span><div><strong>First-boot provisioning — the one script you run on a PC.</strong> Run once per NUC with <code class="inline">-PCNumber xxx -HollyPassword … -AuthKey tskey-auth-… -AwsAccessKey … -AwsSecretKey …</code> (secrets are parameters — none live in this public repo). Renames the PC to <code class="inline">HOLLY-xxx</code>, configures auto-login as <code class="inline">holly</code>, debloats, installs TightVNC + OpenSSH server, hardens the kiosk, joins the tailnet, disables wifi/BT — then (§21) registers the <strong>watchdog launcher</strong> as a logon task, and (§22) enrols the device into Greengrass as <code class="inline">holly-xxx</code> in <code class="inline">holly-fleet</code>. Writes <code class="inline">C:\code\setup-status.json</code>.</div></div>
       <div class="row"><span class="n">publish.sh</span><div><strong>Releases — the one script you run on the Mac.</strong> Zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. Devices pull it themselves — offline NUCs catch up when they reconnect, and a newly enrolled NUC receives the current version automatically. Replaced <code class="inline">push.sh</code> (scp over the tailnet).</div></div>
-      <div class="row"><span class="n">watchdog</span><div><strong>Runtime.</strong> Embedded inside <code class="inline">setup.ps1</code> §21 (a here-string — that's its source of truth), written to <code class="inline">C:\code\watchdog.ps1</code> and registered as a logon task during provisioning. Runs continuously in holly's interactive session: launches <code class="inline">uv run holly</code> from <code class="inline">C:\code\holly\projects\holly-local</code>, enforces the 08:30–18:00 Mon–Fri window, restarts on crash or hang (with restart-storm backoff), logs to <code class="inline">C:\Watchdog</code>. <em>This is the local half of the boundary — Greengrass never touches it.</em></div></div>
+      <div class="row"><span class="n">watchdog.ps1</span><div><strong>Runtime — fleet-managed.</strong> Lives in this repo; <code class="inline">publish.sh</code> packs it into every release, so it lands and updates at <code class="inline">C:\code\holly\watchdog.ps1</code> on every PC — a watchdog fix rolls out fleet-wide exactly like app code, no per-PC SSH. On each PC it's kept running by a tiny never-changing <strong>launcher</strong> (<code class="inline">C:\code\watchdog-launcher.ps1</code>, installed by setup.ps1 §21 as the logon task). It runs continuously in holly's interactive session: launches <code class="inline">uv run holly</code> from <code class="inline">C:\code\holly\projects\holly-local</code>, enforces the 08:30–18:00 Mon–Fri window, restarts on crash or hang (with restart-storm backoff), restarts <em>itself</em> when a release replaces its file, logs to <code class="inline">C:\Watchdog</code>. <em>This is the local half of the boundary — Greengrass delivers it but never runs it.</em></div></div>
     </div>
 
     <div class="note">
       <span class="lab">Removed</span>
-      <code class="inline">ssh_script.ps1</code> (retrofit for the earliest PCs — superseded by setup.ps1 §12B), <code class="inline">push.sh</code> (scp deploys — superseded by publish.sh), and the standalone <code class="inline">watchdog.ps1</code> (now embedded in setup.ps1) are gone from the repo; all remain in git history. SSH + Tailscale themselves stay installed on every NUC as the manual/emergency access path alongside VNC.
+      <code class="inline">ssh_script.ps1</code> (retrofit for the earliest PCs — superseded by setup.ps1 §12B) and <code class="inline">push.sh</code> (scp deploys — superseded by publish.sh) are gone from the repo; both remain in git history. SSH + Tailscale themselves stay installed on every NUC as the manual/emergency access path alongside VNC.
     </div>
   </section>
 
@@ -294,8 +294,8 @@ Remove-Item Env:\AWS_ACCESS_KEY_ID, Env:\AWS_SECRET_ACCESS_KEY -ErrorAction Sile
     </ol>
 
     <div class="note warn">
-      <span class="lab">Credential hygiene</span>
-      The auto installer wants AWS keys present on the box during install. For a real fleet, prefer the manual-certificate path (create the cert/policy in AWS, hand the files over) so provisioning keys never touch the device. At minimum, clear the env vars after install — the command above does.
+      <span class="lab">Credential hygiene — scaled for a real fleet</span>
+      Don't provision with a personal admin key. Create a dedicated IAM user (e.g. <code class="inline">greengrass-provisioner</code>) with AWS's documented <em>"Minimal IAM policy for installer to provision resources"</em>, use its access key for all enrolments, and deactivate the key in IAM between provisioning sessions. setup.ps1 already wipes the keys from each PC after enrolment. When enrolment volume grows (batches of PCs, other people provisioning), upgrade to <strong>fleet provisioning with claim certificates</strong> — AWS's Tailscale-authkey-style flow where the USB stick carries only a narrow claim certificate that devices exchange for their own identity, and account keys never touch a PC at all. It slots into §22 without changing anything else in the architecture.
     </div>
     <div class="note">
       <span class="lab">Verify</span>
@@ -315,15 +315,16 @@ Remove-Item Env:\AWS_ACCESS_KEY_ID, Env:\AWS_SECRET_ACCESS_KEY -ErrorAction Sile
       <tr><td>Hang</td><td>Optional <code class="inline">-DetectHang</code>: an unresponsive window gets a 30s grace period, then a tree-kill and relaunch.</td></tr>
       <tr><td>Storms</td><td>More than 5 restarts in 60s → back off 60s, so a broken build can't spin the CPU all day.</td></tr>
       <tr><td>Logs</td><td><code class="inline">C:\Watchdog\qtbrowser-watchdog.log</code> — this file is also the natural heartbeat source (see 08).</td></tr>
-      <tr><td>Fresh PC</td><td>If <code class="inline">C:\code\holly</code> hasn't arrived yet (first Greengrass deployment still downloading), the watchdog waits for it rather than exiting — so it's safe to register during setup, before any code exists.</td></tr>
+      <tr><td>Fresh PC</td><td>If <code class="inline">C:\code\holly</code> hasn't arrived yet (first Greengrass deployment still downloading), the launcher and watchdog wait for it rather than exiting — so setup order never matters.</td></tr>
+      <tr><td>Self-update</td><td>The watchdog ships inside every release (publish.sh packs it in). When a deployment replaces <code class="inline">C:\code\holly\watchdog.ps1</code>, the running watchdog notices its own file changed, closes the app, and exits; the launcher immediately starts the new version, which relaunches the app. A watchdog fix reaches 100 PCs the same way an app fix does.</td></tr>
     </table>
 
     <h3>How it starts</h3>
-    <p><code class="inline">setup.ps1</code> §21 writes the embedded watchdog to <code class="inline">C:\code\watchdog.ps1</code> and registers it as the <code class="inline">Holly-Watchdog</code> logon task, running <strong>interactively as holly</strong> so anything it launches paints on the real desktop. For PCs provisioned before §21 existed, put the watchdog at <code class="inline">C:\code\watchdog.ps1</code> yourself (copy the here-string body out of setup.ps1 §21) and run the same registration by hand:</p>
+    <p>Two layers, split by how often they change. <code class="inline">setup.ps1</code> §21 installs a tiny <strong>launcher</strong> (<code class="inline">C:\code\watchdog-launcher.ps1</code>) and registers it as the <code class="inline">Holly-Watchdog</code> logon task, running <strong>interactively as holly</strong> so anything it launches paints on the real desktop. The launcher never changes — its whole job is "wait for <code class="inline">C:\code\holly\watchdog.ps1</code> to exist, run it, rerun it if it exits". The <strong>watchdog</strong> (all the actual logic) arrives via deployments, so it's never frozen into any one PC. For PCs provisioned before §21 existed, copy the launcher out of setup.ps1 §21 to <code class="inline">C:\code\watchdog-launcher.ps1</code> and run the same registration by hand:</p>
     <div class="code">
       <div class="bar"><span class="lang">PowerShell (admin) — only needed on pre-§21 PCs</span><button onclick="cp(this)">Copy</button></div>
 <pre>$action = New-ScheduledTaskAction <span class="k">-Execute</span> <span class="s">"powershell.exe"</span> `
-  <span class="k">-Argument</span> <span class="s">'-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog.ps1'</span>
+  <span class="k">-Argument</span> <span class="s">'-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog-launcher.ps1'</span>
 
 $trigger = New-ScheduledTaskTrigger <span class="k">-AtLogOn</span> <span class="k">-User</span> <span class="s">"holly"</span>
 
@@ -336,7 +337,7 @@ $settings = New-ScheduledTaskSettingsSet <span class="k">-ExecutionTimeLimit</sp
 Register-ScheduledTask <span class="k">-TaskName</span> <span class="s">"Holly-Watchdog"</span> `
   <span class="k">-Action</span> $action <span class="k">-Trigger</span> $trigger <span class="k">-Principal</span> $principal <span class="k">-Settings</span> $settings <span class="k">-Force</span></pre>
     </div>
-    <div class="note tip"><span class="lab">Why the settings block matters</span> Task Scheduler kills tasks after 72h by default — <code class="inline">-ExecutionTimeLimit</code> zero lets the watchdog run forever, and the restart settings relaunch the watchdog itself if it ever dies. Note the watchdog is deployed by <code class="inline">setup.ps1</code>, not by Greengrass — to change it, edit the here-string in setup.ps1 §21 (the source of truth), then update <code class="inline">C:\code\watchdog.ps1</code> on each PC (SSH over the tailnet) and restart the task.</div>
+    <div class="note tip"><span class="lab">Why the settings block matters</span> Task Scheduler kills tasks after 72h by default — <code class="inline">-ExecutionTimeLimit</code> zero lets the launcher run forever, and the restart settings relaunch the launcher itself if it ever dies. To change the watchdog: edit <code class="inline">watchdog.ps1</code> in the repo and run <code class="inline">./publish.sh</code> — every PC picks it up like an app release. No SSH, no per-PC work.</div>
   </section>
 
   <!-- 6 -->
@@ -364,8 +365,9 @@ window.showFullScreen()</pre>
     <p>A release is <code class="inline">./publish.sh</code> from the Mac: it zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. (<code class="inline">./publish.sh 1.4.0</code> to pin a version; otherwise the patch number auto-bumps.) What that buys over the old scp loop:</p>
     <table class="kv">
       <tr><td>Versioned</td><td>Every release is a numbered component version — you always know what's on which NUC.</td></tr>
-      <tr><td>Staged</td><td>Roll out to one device first, then the rest. A bad push doesn't hit the whole fleet at once.</td></tr>
-      <tr><td>Auto-rollback</td><td>If a deployment fails its health checks, it reverts.</td></tr>
+      <tr><td>Staged</td><td>Built into every publish: devices update a few at a time, accelerating as updates succeed (exponential rollout, capped at 50/min). Sized for a 100-PC fleet from day one.</td></tr>
+      <tr><td>Auto-abort</td><td>If ≥20% of the first devices fail the deployment, the rollout <strong>cancels itself</strong> — a bad build never reaches the whole fleet.</td></tr>
+      <tr><td>Auto-rollback</td><td>A device that fails a deployment reverts to the previous working version.</td></tr>
       <tr><td>Pull-based</td><td>A NUC that was offline self-updates when it reconnects — no need for your Mac to be on.</td></tr>
     </table>
 
@@ -418,7 +420,7 @@ window.showFullScreen()</pre>
     <ol class="steps">
       <li>
         <div class="st-title">Windows OOBE, offline</div>
-        <p>No wifi at any point. Offline account, username <code class="inline">holly</code>, password <code class="inline">holly</code>. (<code class="inline">OOBE\BYPASSNRO</code> via <code class="inline">Shift+F10</code> if Windows blocks the offline path.) Then plug in ethernet at the desktop.</p>
+        <p>No wifi at any point. Offline account, username <code class="inline">holly</code>, password = the fleet password (kept out of this public repo). (<code class="inline">OOBE\BYPASSNRO</code> via <code class="inline">Shift+F10</code> if Windows blocks the offline path.) Then plug in ethernet at the desktop.</p>
       </li>
       <li>
         <div class="st-title">Run setup.ps1</div>
@@ -426,7 +428,7 @@ window.showFullScreen()</pre>
           <div class="bar"><span class="lang">Terminal (admin)</span><button onclick="cp(this)">Copy</button></div>
 <pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\Users\holly\Downloads
-.\setup.ps1 <span class="k">-PCNumber</span> 004 <span class="k">-AuthKey</span> <span class="s">"tskey-auth-..."</span> `
+.\setup.ps1 <span class="k">-PCNumber</span> 004 <span class="k">-HollyPassword</span> <span class="s">"..."</span> <span class="k">-AuthKey</span> <span class="s">"tskey-auth-..."</span> `
   <span class="k">-AwsAccessKey</span> <span class="s">"AKIA..."</span> <span class="k">-AwsSecretKey</span> <span class="s">"..."</span></pre>
         </div>
         <p>15–30 minutes. This is everything: provisioning, watchdog registration (§21), and Greengrass enrolment as <code class="inline">holly-004</code> (§22 — the AWS keys are used for enrolment then cleared). Reboot when asked, then run Windows Update to completion.</p>

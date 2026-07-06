@@ -10,21 +10,33 @@
     and writes a status file to C:\code\setup-status.json for fleet-wide auditing.
 
 .USAGE
-    1. Complete Windows OOBE manually (say no to everything, username "holly", password "holly").
+    1. Complete Windows OOBE manually (say no to everything, username "holly",
+       password = the standard fleet password, which is deliberately not
+       written anywhere in this public repo).
     2. Plug in ethernet.
     3. Open PowerShell AS ADMINISTRATOR.
     4. If script is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-    5. Run: .\Setup-HollyPC.ps1 -PCNumber 001 -AuthKey "tskey-auth-..." `
+    5. Run: .\setup.ps1 -PCNumber 001 -HollyPassword "..." -AuthKey "tskey-auth-..." `
             -AwsAccessKey "AKIA..." -AwsSecretKey "..."
 
        (omit -AuthKey to install Tailscale but sign in manually later;
         omit the AWS keys to skip Greengrass enrolment and do it later)
 
-    The app watchdog is embedded in this script (section 21) - it gets written
-    to C:\code\watchdog.ps1 and registered as a logon task automatically.
+    This script registers a small watchdog launcher as a logon task. The
+    watchdog itself is fleet-managed: it ships inside every app release
+    (publish.sh packs it into the component) and lands at
+    C:\code\holly\watchdog.ps1, so watchdog fixes roll out like app code.
 
 .PARAMETER PCNumber
     Three-digit number for this PC, used in hostname HOLLY-NNN. e.g. "001", "002"
+
+.PARAMETER HollyPassword
+    The holly account's password, exactly as typed during OOBE. Kept out of
+    the repo on purpose (the repo is public). Prompted for if omitted.
+
+.PARAMETER VncPassword
+    Optional. VNC connection password; defaults to HollyPassword.
+    TightVNC only uses the first 8 characters.
 
 .PARAMETER AuthKey
     Optional. Tailscale auth key for unattended sign-in. Generate from:
@@ -43,6 +55,17 @@ param(
     [ValidatePattern('^\d{3}$')]
     [string]$PCNumber,
 
+    # The holly account's password - must match what was typed during OOBE.
+    # A parameter (not hardcoded) so the fleet password never lives in the
+    # repo, which is public. PowerShell prompts for it if omitted.
+    [Parameter(Mandatory=$true)]
+    [string]$HollyPassword,
+
+    # VNC connection password. Defaults to the holly password.
+    # TightVNC only uses the first 8 characters (DES limit).
+    [Parameter(Mandatory=$false)]
+    [string]$VncPassword = "",
+
     [Parameter(Mandatory=$false)]
     [string]$AuthKey = "",
 
@@ -59,8 +82,7 @@ param(
 # ============================================================================
 # CONFIG - edit these before running on the first PC
 # ============================================================================
-$HollyPassword     = "holly"   # Password for the Holly user (must match what was typed in OOBE)
-$TightVNCPassword  = "holly"   # VNC connection password (max 8 chars for legacy clients)
+$TightVNCPassword  = if ($VncPassword) { $VncPassword } else { $HollyPassword }
 $NewHostname       = "HOLLY-$PCNumber"
 
 # ----- Tailscale -----
@@ -101,10 +123,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit 1
 }
 
-if ($HollyPassword -eq "CHANGE_ME_BEFORE_RUNNING") {
-    Write-Host "ERROR: Edit the script and set HollyPassword and TightVNCPassword first." -ForegroundColor Red
-    exit 1
-}
 
 # ============================================================================
 # RESULT TRACKING + LOGGING HELPERS
@@ -794,178 +812,49 @@ if ($btDevices.Count -eq 0) {
 }
 
 # ============================================================================
-# 21. WATCHDOG INSTALL + AUTO-START (ADDED)
+# 21. WATCHDOG LAUNCHER + AUTO-START (ADDED)
 # ============================================================================
-# Writes the embedded watchdog script to C:\code\watchdog.ps1 and registers it
-# as a logon task for holly. The watchdog owns the kiosk window: launches the
-# app 08:30-18:00 Mon-Fri, restarts it on crash/hang, closes it outside those
-# hours. It must run in holly's *interactive* session - the one thing no
-# service (including Greengrass, which lives in session 0) can ever do.
+# Registers a small launcher as a logon task for holly. The launcher is a
+# stable shim that never needs updating: it waits for the fleet-managed
+# watchdog and keeps it running. The watchdog itself (watchdog.ps1 in the
+# pc-setup repo) ships inside every app release - publish.sh packs it into
+# the component, so it lands and updates at C:\code\holly\watchdog.ps1 on
+# every PC, and watchdog fixes roll out fleet-wide like app code.
 #
-# The here-string below IS the watchdog - edit it here, then update
-# C:\code\watchdog.ps1 on already-provisioned PCs (SSH) and restart the task.
-# Single-quoted here-string: nothing inside is expanded by this script.
-$WatchdogScript = @'
-<#
-.SYNOPSIS
-  Scheduled watchdog for a CLI-launched Qt browser.
-  - Runs the browser only 08:30-18:00, Mon-Fri.
-  - Restarts it if it exits, crashes, or (optionally) hangs during that window.
-  - Closes it outside the window.
-  Designed to run continuously in the interactive user session.
-  (Source of truth: the here-string in setup.ps1 section 21.)
-#>
-
-param(
-    [string]$ExePath   = "uv",
-    [string[]]$Arguments = @("run", "holly"),
-
-    # Directory to run the command from (the path you normally cd into)
-    [string]$WorkDir   = "C:\code\holly\projects\holly-local",
-
-    # Active window (24h). Browser runs only inside this, on weekdays.
-    [string]$StartTime = "08:30",
-    [string]$EndTime   = "18:00",
-
-    [int]$PollSeconds = 3,
-
-    [switch]$DetectHang,
-    [int]$HangGraceSeconds = 30,
-
-    [int]$MaxRestarts = 5,
-    [int]$RestartWindowSeconds = 60,
-    [int]$BackoffSeconds = 60,
-
-    [string]$LogPath = "C:\Watchdog\qtbrowser-watchdog.log"
-)
-
-$ErrorActionPreference = 'Stop'
-
-$logDir = Split-Path -Parent $LogPath
-if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-
-function Write-Log {
-    param([string]$Message, [string]$Level = 'INFO')
-    $line = "{0}  [{1}]  {2}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Level, $Message
-    try { Add-Content -Path $LogPath -Value $line } catch {}
-    Write-Host $line
-}
-
-function In-ActiveWindow {
-    $now = Get-Date
-    if ($now.DayOfWeek -eq 'Saturday' -or $now.DayOfWeek -eq 'Sunday') { return $false }
-    $start = [datetime]::ParseExact($StartTime, 'HH:mm', $null)
-    $end   = [datetime]::ParseExact($EndTime,   'HH:mm', $null)
-    $start = [datetime]::Today.Add($start.TimeOfDay)
-    $end   = [datetime]::Today.Add($end.TimeOfDay)
-    return ($now -ge $start -and $now -lt $end)
-}
-
-function Stop-Tree {
-    param([int]$ProcId)
-    try { Start-Process taskkill -ArgumentList "/PID $ProcId /T /F" -Wait -NoNewWindow -ErrorAction SilentlyContinue } catch {}
-}
-
-function Stop-Target {
-    param($Proc)
-    if ($null -eq $Proc) { return }
-    try { $Proc.Refresh(); if ($Proc.HasExited) { return } } catch { return }
-    Write-Log "Closing browser (PID $($Proc.Id)) - outside active hours."
-    try { $Proc.CloseMainWindow() | Out-Null } catch {}
-    Start-Sleep -Seconds 5
-    try { $Proc.Refresh(); if (-not $Proc.HasExited) { Stop-Tree -ProcId $Proc.Id } } catch { Stop-Tree -ProcId $Proc.Id }
-}
-
-function Start-Target {
-    Write-Log "Launching: `"$ExePath`" $($Arguments -join ' ')"
-    try {
-        $p = Start-Process -FilePath $ExePath -ArgumentList $Arguments -WorkingDirectory $WorkDir -PassThru
-        Start-Sleep -Milliseconds 500
-        Write-Log "Started. PID: $($p.Id)"
-        return $p
-    } catch {
-        Write-Log "Failed to launch: $($_.Exception.Message)" 'ERROR'
-        return $null
-    }
-}
-
-Write-Log "===== Watchdog starting ====="
-Write-Log "Target: $ExePath $($Arguments -join ' ') | WorkDir: $WorkDir | Hours: $StartTime-$EndTime Mon-Fri | HangDetect: $DetectHang"
-if (($ExePath -match '[\\/:]') -and -not (Test-Path $ExePath)) { Write-Log "Executable not found: $ExePath" 'ERROR'; exit 1 }
-
-# Don't exit if the app folder isn't there yet - on a fresh PC the watchdog
-# starts at logon while the first Greengrass deployment may still be
-# downloading the code. Wait for it instead, so registration order never matters.
-if (-not (Test-Path $WorkDir)) {
-    Write-Log "Working directory not found: $WorkDir - waiting for it to appear (first deployment may still be downloading)" 'WARN'
-    while (-not (Test-Path $WorkDir)) { Start-Sleep -Seconds 30 }
-    Write-Log "Working directory appeared: $WorkDir"
-}
-
-$restartTimes = @()
-$proc = $null
-
+# The watchdog owns the kiosk window: launches the app 08:30-18:00 Mon-Fri,
+# restarts it on crash/hang, closes it outside those hours. It must run in
+# holly's *interactive* session - the one thing no service (including
+# Greengrass, which lives in session 0) can ever do.
+$LauncherScript = @'
+# Holly watchdog launcher - stable shim registered as holly's logon task.
+# The real logic is C:\code\holly\watchdog.ps1, which arrives (and updates)
+# with every app release. Keep this file logic-free: it only changes by
+# re-running setup.ps1 on the machine.
+$wd = "C:\code\holly\watchdog.ps1"
 while ($true) {
-    Start-Sleep -Seconds $PollSeconds
-
-    if (-not (In-ActiveWindow)) {
-        if ($proc) { Stop-Target -Proc $proc; $proc = $null; $restartTimes = @() }
-        continue
+    if (Test-Path $wd) {
+        # Blocks while the watchdog runs. The watchdog exits on purpose when
+        # a release replaces its file; looping relaunches the new version.
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $wd
     }
-
-    # ---- inside active hours: keep it running ----
-    if ($proc) { try { $proc.Refresh() } catch {} }
-
-    $needsRestart = $false; $reason = ''
-
-    if ($null -eq $proc -or $proc.HasExited) {
-        $needsRestart = $true
-        $code = 'n/a'; if ($proc) { try { $code = $proc.ExitCode } catch { $code = 'unknown' } }
-        $reason = "not running (exit code: $code)"
-    }
-    elseif ($DetectHang -and $proc.MainWindowHandle -ne 0 -and -not $proc.Responding) {
-        $stillHung = $true; $deadline = (Get-Date).AddSeconds($HangGraceSeconds)
-        while ((Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 2
-            try { $proc.Refresh() } catch {}
-            if ($proc.HasExited)  { $stillHung = $false; break }
-            if ($proc.Responding) { $stillHung = $false; break }
-        }
-        if ($stillHung -and -not $proc.HasExited) {
-            Write-Log "Window unresponsive for ${HangGraceSeconds}s. Killing PID $($proc.Id)." 'WARN'
-            Stop-Tree -ProcId $proc.Id; $needsRestart = $true; $reason = "window hung"
-        }
-    }
-
-    if ($needsRestart) {
-        Write-Log "Restart triggered: $reason" 'WARN'
-        $now = Get-Date
-        $restartTimes += $now
-        $cutoff = $now.AddSeconds(-$RestartWindowSeconds)
-        $restartTimes = @($restartTimes | Where-Object { $_ -ge $cutoff })
-        if ($restartTimes.Count -gt $MaxRestarts) {
-            Write-Log ("Restart storm: {0} in {1}s. Backing off {2}s." -f $restartTimes.Count, $RestartWindowSeconds, $BackoffSeconds) 'ERROR'
-            Start-Sleep -Seconds $BackoffSeconds; $restartTimes = @()
-        }
-        $proc = Start-Target
-    }
+    Start-Sleep -Seconds 15
 }
 '@
 
-Write-Step "Installing app watchdog + logon task"
+Write-Step "Installing watchdog launcher + logon task"
 
-Try-Step "watchdog.ps1 written to C:\code" {
-    Set-Content -Path "C:\code\watchdog.ps1" -Value $WatchdogScript -Encoding UTF8 -Force -ErrorAction Stop
+Try-Step "Watchdog launcher written to C:\code" {
+    Set-Content -Path "C:\code\watchdog-launcher.ps1" -Value $LauncherScript -Encoding UTF8 -Force -ErrorAction Stop
 }
 
 Try-Step "Holly-Watchdog logon task registered" {
     $wdAction = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog.ps1'
+        -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\code\watchdog-launcher.ps1'
     $wdTrigger = New-ScheduledTaskTrigger -AtLogOn -User "holly"
     # Interactive = anything it launches paints on holly's real desktop
     $wdPrincipal = New-ScheduledTaskPrincipal -UserId "holly" -LogonType Interactive
     # ExecutionTimeLimit 0 = never kill it (Task Scheduler default is 72h);
-    # restart settings relaunch the watchdog itself if it ever dies
+    # restart settings relaunch the launcher itself if it ever dies
     $wdSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `
         -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
         -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
