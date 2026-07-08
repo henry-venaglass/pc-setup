@@ -113,8 +113,12 @@ $psToolsZip = "$env:TEMP\PSTools.zip"
 $psToolsDir = "$env:TEMP\PSTools"
 Invoke-WebRequest -Uri "https://download.sysinternals.com/files/PSTools.zip" -OutFile $psToolsZip -UseBasicParsing
 Expand-Archive $psToolsZip $psToolsDir -Force
-& "$psToolsDir\PsExec.exe" -accepteula -nobanner -s cmd /c "cmdkey /generic:$GgcUser /user:$GgcUser /pass:$ggcPassword" 2>$null
-if ($LASTEXITCODE -ne 0) { throw "psexec/cmdkey returned exit code $LASTEXITCODE" }
+# Start-Process, NOT '&' - PsExec chatters on stderr, which strict mode
+# would otherwise turn into a fatal NativeCommandError
+$p = Start-Process -FilePath "$psToolsDir\PsExec.exe" `
+    -ArgumentList "-accepteula", "-nobanner", "-s", "cmd", "/c", "cmdkey /generic:$GgcUser /user:$GgcUser /pass:$ggcPassword" `
+    -Wait -PassThru -NoNewWindow
+if ($p.ExitCode -ne 0) { throw "psexec/cmdkey returned exit code $($p.ExitCode)" }
 
 & icacls "C:\code" /grant "${GgcUser}:(OI)(CI)M" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "icacls returned exit code $LASTEXITCODE" }

@@ -917,8 +917,12 @@ if ($AwsAccessKey -and $AwsSecretKey) {
         $psToolsDir = "$env:TEMP\PSTools"
         Invoke-WebRequest -Uri "https://download.sysinternals.com/files/PSTools.zip" -OutFile $psToolsZip -UseBasicParsing -ErrorAction Stop
         Expand-Archive $psToolsZip $psToolsDir -Force
-        & "$psToolsDir\PsExec.exe" -accepteula -nobanner -s cmd /c "cmdkey /generic:$GgcUser /user:$GgcUser /pass:$($script:GgcPassword)" 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "psexec/cmdkey returned exit code $LASTEXITCODE" }
+        # Start-Process, NOT '&' - PsExec chatters on stderr, which would
+        # otherwise surface as a NativeCommandError
+        $p = Start-Process -FilePath "$psToolsDir\PsExec.exe" `
+            -ArgumentList "-accepteula", "-nobanner", "-s", "cmd", "/c", "cmdkey /generic:$GgcUser /user:$GgcUser /pass:$($script:GgcPassword)" `
+            -Wait -PassThru -NoNewWindow -ErrorAction Stop
+        if ($p.ExitCode -ne 0) { throw "psexec/cmdkey returned exit code $($p.ExitCode)" }
     }
 
     # Deployments write the app code into C:\code\holly as ggc_user
