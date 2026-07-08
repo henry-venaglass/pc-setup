@@ -54,7 +54,17 @@ echo "==> publishing $COMPONENT v$VERSION to $GROUP"
 # ---- zip the app source + upload ----------------------------------------
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-(cd "$SRC" && zip -rq "$TMP/holly.zip" . -x '.venv/*' -x '.git/*' -x '*/__pycache__/*')
+# Exclusions must cover NESTED dirs too ('*/.venv/*'), not just the root -
+# the projects/* venvs alone are ~2.7GB and the PC discards them anyway
+# (uv run rebuilds its own env; robocopy on the PC excludes .venv).
+(cd "$SRC" && zip -rq "$TMP/holly.zip" . \
+  -x '.git/*'  -x '*/.git/*' \
+  -x '.venv/*' -x '*/.venv/*' \
+  -x 'node_modules/*' -x '*/node_modules/*' \
+  -x '*/__pycache__/*' -x '*.pyc' \
+  -x '.DS_Store' -x '*/.DS_Store' \
+  -x '.ruff_cache/*' -x '*/.ruff_cache/*' \
+  -x '.pytest_cache/*' -x '*/.pytest_cache/*')
 # The watchdog rides along in every release (lands at C:\code\holly\watchdog.ps1),
 # so watchdog fixes roll out fleet-wide like app code - no per-PC SSH.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
