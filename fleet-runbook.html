@@ -242,7 +242,9 @@
         <p>Greengrass Core runs on the JVM. §22 installs Amazon Corretto via winget:</p>
         <div class="code">
           <div class="bar"><span class="lang">PowerShell (admin)</span><button onclick="cp(this)">Copy</button></div>
-<pre>winget install <span class="k">--id</span> Amazon.Corretto.11.JRE --silent --accept-package-agreements --accept-source-agreements
+<pre><span class="c"># direct MSI from Amazon (winget has no Corretto JRE package)</span>
+Invoke-WebRequest <span class="s">"https://corretto.aws/downloads/latest/amazon-corretto-11-x64-windows-jdk.msi"</span> -OutFile <span class="s">"$env:TEMP\corretto11.msi"</span>
+msiexec /i <span class="s">"$env:TEMP\corretto11.msi"</span> /qn
 <span class="c"># java lands at C:\Program Files\Amazon Corretto\*\bin\java.exe</span></pre>
         </div>
       </li>
