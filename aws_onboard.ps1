@@ -84,7 +84,11 @@ Write-Host "    Holly-Watchdog task registered (starts at holly's next logon)"
 Write-Step "Installing Java runtime (Amazon Corretto)"
 $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $java) {
-    $null = winget install --id Amazon.Corretto.11.JRE --source winget --silent --accept-package-agreements --accept-source-agreements 2>&1
+    # Direct MSI from Amazon - no winget dependency
+    $msi = "$env:TEMP\corretto11.msi"
+    Invoke-WebRequest -Uri "https://corretto.aws/downloads/latest/amazon-corretto-11-x64-windows-jdk.msi" -OutFile $msi -UseBasicParsing
+    $p = Start-Process msiexec.exe -ArgumentList "/i", "`"$msi`"", "/qn" -Wait -PassThru
+    if ($p.ExitCode -ne 0) { throw "Corretto MSI install returned exit code $($p.ExitCode)" }
     $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 if (-not $java) { throw "java.exe not found after Corretto install" }

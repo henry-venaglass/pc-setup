@@ -876,11 +876,15 @@ Try-Step "Holly-Watchdog logon task registered" {
 if ($AwsAccessKey -and $AwsSecretKey) {
     Write-Step "Enrolling into AWS IoT Greengrass as $ThingName"
 
-    # Greengrass Core runs on the JVM
-    Try-Step "Amazon Corretto JRE installed" {
+    # Greengrass Core runs on the JVM. Direct MSI from Amazon - no winget
+    # dependency (the winget Corretto ids don't include a JRE package).
+    Try-Step "Amazon Corretto installed" {
         $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
         if (-not $java) {
-            $null = winget install --id Amazon.Corretto.11.JRE --source winget --silent --accept-package-agreements --accept-source-agreements 2>&1
+            $msi = "$env:TEMP\corretto11.msi"
+            Invoke-WebRequest -Uri "https://corretto.aws/downloads/latest/amazon-corretto-11-x64-windows-jdk.msi" -OutFile $msi -UseBasicParsing -ErrorAction Stop
+            $p = Start-Process msiexec.exe -ArgumentList "/i", "`"$msi`"", "/qn" -Wait -PassThru -ErrorAction Stop
+            if ($p.ExitCode -ne 0) { throw "Corretto MSI install returned exit code $($p.ExitCode)" }
             $java = Get-ChildItem "$env:ProgramFiles\Amazon Corretto\*\bin\java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
         }
         if (-not $java) { throw "java.exe not found after Corretto install" }
