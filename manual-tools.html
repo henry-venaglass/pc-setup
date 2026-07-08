@@ -81,6 +81,20 @@
   </section>
 
   <section>
+    <h2>aws_onboard.ps1 — put an older PC onto AWS</h2>
+    <div class="when"><span class="lab">When to use</span> A PC that was fully set up <em>before</em> AWS was part of setup.ps1 (PCs 001–003). One run catches it up: registers the watchdog task and enrols it into Greengrass so code arrives automatically. New PCs never need this — setup.ps1 does it all.</div>
+    <p><a class="dl" href="aws_onboard.ps1" download="aws_onboard.ps1">⬇&nbsp; Download aws_onboard.ps1</a></p>
+    <p>On the PC (get the file there via this page or VNC): right-click Start → <strong>Terminal (Admin)</strong>:</p>
+    <div class="code">
+      <div class="bar"><span>Terminal (Admin) on the PC</span><button onclick="cp(this)">Copy</button></div>
+<pre>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+cd C:\Users\holly\Downloads
+.\aws_onboard.ps1 -PCNumber <span class="hl">001</span> -AwsAccessKey <span class="hl">"AKIA..."</span> -AwsSecretKey <span class="hl">"..."</span></pre>
+    </div>
+    <p>Afterwards the PC shows <strong>Healthy</strong> in AWS (IoT Core → Greengrass → Core devices), pulls the current code into <code class="inline">C:\code\holly</code> by itself, and the watchdog starts at the next logon — reboot when convenient.</p>
+  </section>
+
+  <section>
     <h2>ssh_script.ps1 — give one PC SSH access</h2>
     <div class="when"><span class="lab">When to use</span> push.sh can't reach a PC because it has no SSH — a machine set up before SSH was part of setup.ps1, or one where Windows was reinstalled. You only ever run this once per PC. New PCs never need it.</div>
     <p>Get the script onto the PC (download it there from this site, or copy it over VNC):</p>

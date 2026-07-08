@@ -234,7 +234,7 @@
   <!-- 4 -->
   <section id="enrol">
     <div class="sec-head"><span class="sec-num">04</span><h2>Enrol a NUC into Greengrass</h2></div>
-    <p>"Connecting a device" isn't a button — installing the Greengrass Core software <em>is</em> the connection. The installer creates the Thing, generates the certificate, makes the device's IAM role, and drops it into <code class="inline">holly-fleet</code> in one shot. <strong>This is all automated as <code class="inline">setup.ps1</code> §22</strong> — it runs when you pass <code class="inline">-AwsAccessKey</code>/<code class="inline">-AwsSecretKey</code>. The steps below are what §22 does under the hood, and how to enrol an already-provisioned PC by hand.</p>
+    <p>"Connecting a device" isn't a button — installing the Greengrass Core software <em>is</em> the connection. The installer creates the Thing, generates the certificate, makes the device's IAM role, and drops it into <code class="inline">holly-fleet</code> in one shot. <strong>This is all automated as <code class="inline">setup.ps1</code> §22</strong> — it runs when you pass <code class="inline">-AwsAccessKey</code>/<code class="inline">-AwsSecretKey</code>. For an <strong>already-provisioned PC</strong> (001–003), run <code class="inline">aws_onboard.ps1</code> instead — it does §21 (watchdog launcher) + §22 (enrolment) and nothing else: <code class="inline">.\aws_onboard.ps1 -PCNumber 001 -AwsAccessKey "AKIA..." -AwsSecretKey "..."</code>. The steps below are what happens under the hood.</p>
 
     <ol class="steps">
       <li>
