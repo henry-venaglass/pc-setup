@@ -897,12 +897,14 @@ if ($AwsAccessKey -and $AwsSecretKey) {
     # Password is random and never needed again (stored below for the service).
     Try-Step "Component user '$GgcUser' created" {
         $ggcPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 24 | ForEach-Object { [char]$_ })
+        # New-LocalUser/Set-LocalUser, NOT net.exe - net user prompts
+        # interactively on passwords >14 chars and hangs the script
+        $securePw = ConvertTo-SecureString $ggcPassword -AsPlainText -Force
         if (Get-LocalUser -Name $GgcUser -ErrorAction SilentlyContinue) {
-            net user $GgcUser $ggcPassword | Out-Null   # reset so the stored credential below matches
+            Set-LocalUser -Name $GgcUser -Password $securePw -ErrorAction Stop   # reset so the stored credential below matches
         } else {
-            net user $GgcUser $ggcPassword /add | Out-Null
+            New-LocalUser -Name $GgcUser -Password $securePw -ErrorAction Stop | Out-Null
         }
-        if ($LASTEXITCODE -ne 0) { throw "net user returned exit code $LASTEXITCODE" }
         Set-LocalUser -Name $GgcUser -PasswordNeverExpires $true -ErrorAction Stop
         $script:GgcPassword = $ggcPassword
     }
