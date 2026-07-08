@@ -10,13 +10,11 @@
     and writes a status file to C:\code\setup-status.json for fleet-wide auditing.
 
 .USAGE
-    1. Complete Windows OOBE manually (say no to everything, username "holly",
-       password = the standard fleet password, which is deliberately not
-       written anywhere in this public repo).
+    1. Complete Windows OOBE manually (say no to everything, username "holly", password "holly").
     2. Plug in ethernet.
     3. Open PowerShell AS ADMINISTRATOR.
     4. If script is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-    5. Run: .\setup.ps1 -PCNumber 001 -HollyPassword "..." -AuthKey "tskey-auth-..." `
+    5. Run: .\setup.ps1 -PCNumber 001 -AuthKey "tskey-auth-..." `
             -AwsAccessKey "AKIA..." -AwsSecretKey "..."
 
        (omit -AuthKey to install Tailscale but sign in manually later;
@@ -31,8 +29,8 @@
     Three-digit number for this PC, used in hostname HOLLY-NNN. e.g. "001", "002"
 
 .PARAMETER HollyPassword
-    The holly account's password, exactly as typed during OOBE. Kept out of
-    the repo on purpose (the repo is public). Prompted for if omitted.
+    The holly account's password, exactly as typed during OOBE. Defaults to
+    "holly" - override only if a PC was set up with a different password.
 
 .PARAMETER VncPassword
     Optional. VNC connection password; defaults to HollyPassword.
@@ -56,10 +54,10 @@ param(
     [string]$PCNumber,
 
     # The holly account's password - must match what was typed during OOBE.
-    # A parameter (not hardcoded) so the fleet password never lives in the
-    # repo, which is public. PowerShell prompts for it if omitted.
-    [Parameter(Mandatory=$true)]
-    [string]$HollyPassword,
+    # Hardcoded default by deliberate choice: PCs are wired-only and physically
+    # controlled, and VNC is reachable only over the tailnet.
+    [Parameter(Mandatory=$false)]
+    [string]$HollyPassword = "holly",
 
     # VNC connection password. Defaults to the holly password.
     # TightVNC only uses the first 8 characters (DES limit).

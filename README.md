@@ -11,7 +11,6 @@ You'll need:
 - The NUC, with power, monitor, keyboard, mouse, and ethernet cable
 - USB stick containing `setup.ps1` (or download it from the [setup guide](https://henry-venaglass.github.io/pc-setup/setup-explainer.html) on the PC)
 - The PC number for this machine (e.g. `001`, `002`, `003`)
-- The fleet password (not written in this repo — it's public)
 - A Tailscale auth key and the provisioning AWS access key + secret (for Greengrass enrolment)
 - A label maker
 
@@ -28,8 +27,8 @@ Power on the NUC. **Do not connect to wifi at any point.**
 - Choose **"Continue with limited setup"** if prompted
 - Select **"Sign-in options" → "Offline account" → "Skip"** to avoid signing in with a Microsoft account
 - Username: `holly` (all lowercase)
-- Password: the standard fleet password (deliberately not written here — this repo is public)
-- Security questions: pick any three, answer with the fleet password
+- Password: `holly`
+- Security questions: pick any three, answer `holly` to all of them
 - Say **No** to every privacy and Cortana question
 
 ## Step 2 — Connect ethernet
@@ -45,10 +44,10 @@ Right-click the Start button and open **Terminal (Admin)**. Run these three comm
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 cd C:\Users\holly\Downloads
-.\setup.ps1 -PCNumber xxx -HollyPassword "..." -AuthKey "tskey-auth-..." -AwsAccessKey "AKIA..." -AwsSecretKey "..."
+.\setup.ps1 -PCNumber xxx -AuthKey "tskey-auth-..." -AwsAccessKey "AKIA..." -AwsSecretKey "..."
 ```
 
-Replace `xxx` with this PC's number (`001`, `002`, etc.), `-HollyPassword` with the fleet password exactly as typed during OOBE, `tskey-auth-...` with the Tailscale auth key, and the AWS keys with a temporary access key from the AWS account (used only during Greengrass enrolment, then cleared from the machine). The script takes 15–30 minutes. When it asks to reboot, say yes.
+Replace `xxx` with this PC's number (`001`, `002`, etc.), `tskey-auth-...` with the Tailscale auth key, and the AWS keys with a temporary access key from the AWS account (used only during Greengrass enrolment, then cleared from the machine). The script takes 15–30 minutes. When it asks to reboot, say yes.
 
 As well as everything else, the script registers the watchdog (which launches and supervises the app during kiosk hours) and enrols the PC into AWS IoT Greengrass as `holly-xxx` in the `holly-fleet` group — which is how app code gets onto the machine.
 
