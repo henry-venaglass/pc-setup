@@ -172,7 +172,22 @@ get-thing-shadow ◀────── <span class="g">device shadow</span> ◀�
   </section>
 
   <section class="card">
-    <h2><span class="n">6</span>Open decisions</h2>
+    <h2><span class="n">6</span>How a human finds out a machine is down</h2>
+    <p>Nobody watches the stream. AWS is wired — once — to watch it and page someone. Both layers are serverless configuration, not services we run:</p>
+    <table class="kv">
+      <tr><th>Failure</th><th>Detected by</th><th>Wiring</th></tr>
+      <tr><td>PC offline</td><td>AWS notices its own connection to the device dropped (same signal as the console's Healthy status)</td><td>Greengrass health event → EventBridge rule → SNS → email/Slack</td></tr>
+      <tr><td>PC online but app/watchman sick</td><td>Heartbeats stop arriving — <em>silence is the alarm</em>; a dead process can't report itself</td><td>IoT Rule feeds a CloudWatch metric → alarm on "no data for 15 min" → SNS → email/Slack</td></tr>
+    </table>
+    <p>On-call experience at 100 PCs: phone buzzes — <em>"holly-047 silent 15 min"</em> — investigate over Tailscale (VNC/SSH). This also sets the production heartbeat design: a slow pulse (~5 min) so silence is detectable, <strong>events</strong> when something actually happens ("app crashed, restarted it"), and a <code class="inline">status</code> command for on-demand detail — less traffic than the PoC's 30s demo firehose, better signal.</p>
+    <div class="note">
+      <span class="lab">Effort &amp; where it fits</span>
+      About an hour of AWS-side config, pennies to run. Belongs in Phase 3 with the rest of the cloud plumbing — and it's pure AWS-side wiring, making it a natural first CloudFormation template.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">7</span>Open decisions</h2>
     <table class="kv">
       <tr><td>Code location</td><td>The watchman is product code — it likely belongs in the holly repo alongside the Qt app (currently uncommitted in pc-setup, which is public). Decide before it grows.</td></tr>
       <tr><td>Device naming</td><td>Fleet is enrolled as <code class="inline">holly-001/002/003</code>; the plan proposes <code class="inline">holly-edge-{customer}-{site}-{number}</code>. Renaming means re-enrolling — cheap at 3 devices, annoying later. Decide before the next enrolment.</td></tr>
