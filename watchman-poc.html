@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holly Watchman PoC — Results &amp; Decisions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F8FB;
+    --card:#FFFFFF;
+    --ink:#1B2233;
+    --muted:#5C6678;
+    --line:#E4E7EE;
+    --accent:#4C6FFF;
+    --accent-soft:#EDF1FF;
+    --accent-deep:#3450D4;
+    --good:#0E9F6E;
+    --good-soft:#E6F6EF;
+    --warn:#B45309;
+    --warn-soft:#FEF3E2;
+    --code-bg:#171C28;
+    --code-ink:#D7DDEA;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Inter",-apple-system,sans-serif;font-size:16.5px;line-height:1.7;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:780px;margin:0 auto;padding:0 22px;}
+
+  header{background:linear-gradient(135deg,#2B3A8F 0%, #4C6FFF 70%, #6E8BFF 100%);color:#fff;padding:58px 0 96px;}
+  header .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:5px 12px;border-radius:999px;}
+  header h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:-.025em;line-height:1.08;margin:20px 0 12px;}
+  header p{color:rgba(255,255,255,.88);font-size:17.5px;max-width:60ch;margin:0;}
+  header .pill{display:inline-flex;align-items:center;gap:8px;margin-top:22px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 16px;font-size:14px;font-weight:600;}
+  header .pill .dot{width:9px;height:9px;border-radius:50%;background:#5CE8A4;box-shadow:0 0 10px 2px rgba(92,232,164,.55);}
+
+  main{padding:0 0 80px;}
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px 32px 22px;margin:0 0 22px;box-shadow:0 1px 3px rgba(27,34,51,.05);}
+  section.card:first-of-type{margin-top:-56px;}
+  h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:0 0 14px;display:flex;align-items:center;gap:10px;}
+  h2 .n{flex:none;width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent-deep);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;}
+  p{margin:12px 0;}
+  strong{font-weight:650;}
+  code.inline{font-family:"JetBrains Mono",monospace;font-size:.82em;background:var(--accent-soft);color:var(--accent-deep);padding:2px 7px;border-radius:6px;}
+
+  .diagram{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:18px 20px;font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.85;overflow-x:auto;white-space:pre;margin:18px 0;}
+  .diagram .a{color:#8FA6FF;}
+  .diagram .g{color:#5CE8A4;}
+
+  .code{margin:16px 0;border-radius:12px;background:var(--code-bg);overflow:hidden;}
+  .code .bar{padding:8px 14px;background:rgba(255,255,255,.06);font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.12em;color:#8A93A8;text-transform:uppercase;}
+  .code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.7;color:var(--code-ink);}
+  .code pre .hl{color:#8FA6FF;}
+
+  table.kv{width:100%;border-collapse:collapse;margin:16px 0 8px;font-size:15px;}
+  table.kv th{text-align:left;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--line);padding:8px 12px;}
+  table.kv td{border-bottom:1px solid var(--line);padding:11px 12px;vertical-align:top;}
+  table.kv tr:last-child td{border-bottom:none;}
+  table.kv td:first-child{font-weight:650;white-space:nowrap;width:1%;}
+
+  .badge{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;}
+  .badge.ok{background:var(--good-soft);color:var(--good);}
+  .badge.later{background:var(--warn-soft);color:var(--warn);}
+
+  ul.plain{padding-left:22px;margin:12px 0;}
+  ul.plain li{margin:8px 0;}
+  ol.checks{padding-left:24px;margin:12px 0;}
+  ol.checks li{margin:9px 0;}
+
+  .note{background:var(--accent-soft);border-radius:12px;padding:15px 18px;margin:18px 0 10px;font-size:14.5px;}
+  .note .lab{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-deep);margin-bottom:5px;}
+
+  footer{color:var(--muted);padding:10px 0 46px;font-size:13px;text-align:center;font-family:"JetBrains Mono",monospace;}
+  @media(max-width:600px){section.card{padding:22px 20px 16px;border-radius:12px;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="tag">Holly fleet · edge control plane · PoC report</span>
+    <h1>Watchman PoC — working</h1>
+    <p>Both communication channels from the edge-management plan are live on holly-001: status flows up every 30 seconds, commands flow down and are answered in about a second, and the watchman itself was deployed to the PC remotely.</p>
+    <span class="pill"><span class="dot"></span> live on holly-001 · com.holly.watchman v0.1.3</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="card">
+    <h2><span class="n">1</span>What's running right now</h2>
+    <div class="diagram">Mac / any client                 AWS                          holly-001
+────────────────                 ───                          ─────────
+aws iot-data publish ──▶ <span class="a">holly/holly-001/commands</span> ──▶ watchman (Python, session 0,
+                                                          Greengrass component)
+MQTT test client ◀────── <span class="a">holly/holly-001/command-results</span> ◀── answers commands
+MQTT test client ◀────── <span class="a">holly/holly-001/status</span> ◀───────── heartbeat every 30s
+get-thing-shadow ◀────── <span class="g">device shadow</span> ◀────────────────── last known state</div>
+    <p>The watchman is ~90 lines of Python. Each heartbeat reports: is the Qt app running, uptime, CPU, memory, free disk. The command handler currently implements <code class="inline">ping</code> (plus a structured error for unknown operations) — it's the slot where <code class="inline">restart_call</code>, <code class="inline">reset_camera</code> etc. go once the Qt localhost API exists.</p>
+    <table class="kv">
+      <tr><th>Plan goal</th><th>PoC state</th></tr>
+      <tr><td>Health / Status</td><td><span class="badge ok">done</span> heartbeats on <code class="inline">…/status</code> + last-known-state in the device shadow (readable even when the PC is offline)</td></tr>
+      <tr><td>Pub / Sub</td><td><span class="badge ok">done</span> both directions, on the topic scheme from the plan (<code class="inline">holly/{device}/commands | command-results | status</code>)</td></tr>
+      <tr><td>Sending commands</td><td><span class="badge ok">done</span> ping → pong round trip, ~1s, with <code class="inline">command_id</code> correlation and an error path for bad commands</td></tr>
+      <tr><td>Deploying code</td><td><span class="badge ok">done</span> the watchman reached the PC via a versioned remote deployment (v0.1.1 → 0.1.3 iterated without touching the PC)</td></tr>
+      <tr><td>Centralised logging</td><td><span class="badge later">deferred</span> Phase 3+ in the plan; Greengrass Log Manager or S3 upload slots in later</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">2</span>The 2-minute live demo</h2>
+    <ol class="checks">
+      <li>AWS console → region <strong>London</strong> → IoT Core → <strong>MQTT test client</strong> → subscribe to <code class="inline">holly/#</code></li>
+      <li>Watch a status heartbeat arrive within 30s — note <code class="inline">app_running</code> is real (start/stop the app on the PC and it flips)</li>
+      <li>Send a command from any terminal with AWS credentials:</li>
+    </ol>
+    <div class="code">
+      <div class="bar">terminal</div>
+<pre>aws iot-data publish --topic <span class="hl">"holly/holly-001/commands"</span> --qos 1 --region eu-west-2 \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"command_id":"demo-1","operation":"ping"}'</pre>
+    </div>
+    <ol class="checks" start="4">
+      <li>The reply appears in the test client on <code class="inline">…/command-results</code>: <code class="inline">"reply": "pong", "ok": true</code></li>
+      <li>Offline view: <code class="inline">aws iot-data get-thing-shadow --thing-name holly-001 --region eu-west-2 /dev/stdout</code></li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">3</span>Decision: why the PoC rides Greengrass, not plain IoT Core</h2>
+    <p>The plan document recommended plain IoT Core for V1 — written from a starting-from-zero assumption. By the time the PoC started, Greengrass was <strong>already installed, enrolled, and proven on all three PCs</strong> (it's how app code deploys now), which flips the trade-off: the listed Greengrass cons ("another runtime to install", "slower path to V1") were already sunk cost.</p>
+    <table class="kv">
+      <tr><th>Concern</th><th>Plain IoT Core script</th><th>Greengrass component (chosen)</th></tr>
+      <tr><td>AWS connection</td><td>own MQTT client, per-device certs to manage in the script</td><td>free — messages hand off to the nucleus's existing secured connection; the watchman contains <strong>zero</strong> connection/cert code</td></tr>
+      <tr><td>Getting it onto PCs</td><td>own installer + copy mechanism</td><td>free — versioned remote deployment, same as app code</td></tr>
+      <tr><td>Keeping it alive</td><td>NSSM / Windows service to build</td><td>free — Greengrass supervises and restarts it</td></tr>
+      <tr><td>Lock-in</td><td>—</td><td>minimal: topics and payloads are plain IoT Core MQTT either way; swapping to the Device SDK later changes ~20 lines</td></tr>
+    </table>
+    <div class="note">
+      <span class="lab">The important invariant</span>
+      Everything above the transport is exactly as specified in the plan: same topic scheme, same command/result payload shape, same watchman responsibilities. Greengrass only answers "how do messages travel and how does code arrive" — the questions the fleet already answered for the app.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">4</span>Deliberately out of scope</h2>
+    <ul class="plain">
+      <li><strong>Real app commands</strong> (<code class="inline">restart_call</code>, <code class="inline">reset_camera</code>…) — blocked on the Qt localhost API (the other half of the split)</li>
+      <li><strong>Centralised logging</strong> — Phase 3+; Log Manager / S3 upload</li>
+      <li><strong>Update/rollback flow, DynamoDB persistence, CloudFormation templates</strong> — later phases; the topics proven now are the contract those build on</li>
+      <li><strong>Fleet rollout</strong> — PoC is pinned to holly-001 via a thing-targeted deployment; going fleet-wide is a one-line change once it graduates</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">5</span>Open decisions</h2>
+    <table class="kv">
+      <tr><td>Code location</td><td>The watchman is product code — it likely belongs in the holly repo alongside the Qt app (currently uncommitted in pc-setup, which is public). Decide before it grows.</td></tr>
+      <tr><td>Device naming</td><td>Fleet is enrolled as <code class="inline">holly-001/002/003</code>; the plan proposes <code class="inline">holly-edge-{customer}-{site}-{number}</code>. Renaming means re-enrolling — cheap at 3 devices, annoying later. Decide before the next enrolment.</td></tr>
+      <tr><td>Local reflex</td><td>When the watchman absorbs the watchdog's schedule/restart logic: keep a minimal "restart if dead" reflex in the user session so kiosks self-heal during cloud/network outages? (Recommended: yes.)</td></tr>
+      <tr><td>Prereq for 002/003</td><td>Machine-wide Python 3.12 (one command per PC — done on 001).</td></tr>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">watchman PoC · topics: holly/{device}/status · commands · command-results</div>
+</footer>
+
+</body>
+</html>
