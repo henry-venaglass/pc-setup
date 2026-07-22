@@ -155,7 +155,24 @@ get-thing-shadow ◀────── <span class="g">device shadow</span> ◀�
   </section>
 
   <section class="card">
-    <h2><span class="n">5</span>Open decisions</h2>
+    <h2><span class="n">5</span>What it costs at scale</h2>
+    <p>Three meters run (prices verified July 2026: <a href="https://aws.amazon.com/greengrass/pricing/">Greengrass</a>, <a href="https://aws.amazon.com/iot-core/pricing/">IoT Core</a>). Per PC per month, at the PoC's 30-second heartbeat cadence:</p>
+    <table class="kv">
+      <tr><th>Meter</th><th>Price</th><th>Per PC / month</th></tr>
+      <tr><td>Greengrass core device</td><td>$0.16/month flat per enrolled device</td><td>$0.16</td></tr>
+      <tr><td>Connection time</td><td>$0.08 per million minutes</td><td>~$0.003 (connected 24/7)</td></tr>
+      <tr><td>Messages</td><td>$1 per million</td><td>~$0.09 (30s heartbeats)</td></tr>
+      <tr><td>Shadow updates</td><td>$1.25 per million</td><td>~$0.11 (every heartbeat)</td></tr>
+    </table>
+    <p><strong>≈ $0.36 per PC per month</strong> → 3 PCs ≈ $1/month · 100 PCs ≈ $36/month (~£27). Code deployments barely register (a 2.9&nbsp;MB release to 100 PCs is cents; S3 storage is pennies).</p>
+    <div class="note">
+      <span class="lab">Two levers worth knowing</span>
+      Over half the per-device cost is our own reporting cadence — a slower pulse and change-only shadow updates roughly halve it. And the real future cost centre is <strong>centralised logging</strong> (CloudWatch bills per GB ingested): chatty logs from 100 PCs would dwarf everything above, so log levels/sampling are a design-time decision for Phase 3, not an afterthought.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">6</span>Open decisions</h2>
     <table class="kv">
       <tr><td>Code location</td><td>The watchman is product code — it likely belongs in the holly repo alongside the Qt app (currently uncommitted in pc-setup, which is public). Decide before it grows.</td></tr>
       <tr><td>Device naming</td><td>Fleet is enrolled as <code class="inline">holly-001/002/003</code>; the plan proposes <code class="inline">holly-edge-{customer}-{site}-{number}</code>. Renaming means re-enrolling — cheap at 3 devices, annoying later. Decide before the next enrolment.</td></tr>
