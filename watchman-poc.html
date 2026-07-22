@@ -196,9 +196,16 @@ get-thing-shadow ◀────── <span class="g">device shadow</span> ◀�
       <tr><td>Groups</td><td>collections: <code class="inline">holly-fleet</code> (all devices), per-customer / per-site groups</td><td>join / leave freely</td></tr>
     </table>
     <p>How groups behave: a thing can be in <strong>multiple groups</strong> (up to 10); groups can nest into hierarchies; and <strong>dynamic groups</strong> can define membership by query ("every thing where customer = X") so they maintain themselves off the attributes. Everything the long name would have provided — "all of customer X's devices", "command every device at site Y" — comes from groups/attributes instead, with no re-enrolment tax.</p>
+
+    <h3 style="font-size:17px;font-weight:700;margin:22px 0 8px;">Aiming deployments at facts ("all of company X's PCs")</h3>
+    <p>Greengrass deployments accept <strong>dynamic thing groups as targets</strong> — and a dynamic group is a fact wearing a target costume: define it once as "everything where <code class="inline">customer=vena</code>" and deploy to it. Move a PC to another customer by changing <strong>one attribute</strong>; it automatically leaves one deployment audience and joins the other. Two clean shapes for what those deployments carry:</p>
+    <ul class="plain">
+      <li><strong>Same app everywhere, per-customer config (recommended default):</strong> <code class="inline">holly-fleet</code> ships the software; customer groups ship only a small config component or settings overrides. Different components → merges cleanly on the device.</li>
+      <li><strong>Genuinely different app versions per customer:</strong> then there's no global software group — each customer group owns software for its devices, and every device sits in exactly one. More overhead; only if truly needed.</li>
+    </ul>
     <div class="note">
       <span class="lab">One rule to keep</span>
-      Exactly <strong>one</strong> group owns software deployments (<code class="inline">holly-fleet</code>, as today). Deployments from multiple groups merge on a device and conflict if two groups ship the same component at different versions — so every other group is for organisation, command targeting, and dashboards only.
+      Any one component is only ever shipped to a device by <strong>one</strong> group. Deployments from multiple groups merge on a device and conflict if two groups ship the same component at different versions — the two shapes above are just the two ways of honouring that rule.
     </div>
   </section>
 
