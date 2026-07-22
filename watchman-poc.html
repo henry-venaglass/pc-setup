@@ -187,10 +187,26 @@ get-thing-shadow ◀────── <span class="g">device shadow</span> ◀�
   </section>
 
   <section class="card">
-    <h2><span class="n">7</span>Open decisions</h2>
+    <h2><span class="n">7</span>Naming &amp; grouping — proposed convention</h2>
+    <p>The plan proposes <code class="inline">holly-edge-{customer}-{site}-{number}</code>. The problem: that bakes <strong>changeable facts into an unchangeable name</strong>. A thing's name is permanent (renaming = re-enrolling the device), but kiosks get redeployed — move a PC to another customer and its name lies forever. The standard fleet pattern splits the jobs:</p>
+    <table class="kv">
+      <tr><th>Thing</th><th>Holds</th><th>Changeable?</th></tr>
+      <tr><td>Name</td><td>stable serial identity: <code class="inline">holly-001</code>, <code class="inline">holly-002</code>… (matches hostname + Tailscale name — three consoles, one identity)</td><td>never — so keep it fact-free</td></tr>
+      <tr><td>Attributes</td><td>business facts: <code class="inline">customer=vena</code>, <code class="inline">site=london-hq</code>, <code class="inline">role=reception</code></td><td>yes — one API call</td></tr>
+      <tr><td>Groups</td><td>collections: <code class="inline">holly-fleet</code> (all devices), per-customer / per-site groups</td><td>join / leave freely</td></tr>
+    </table>
+    <p>How groups behave: a thing can be in <strong>multiple groups</strong> (up to 10); groups can nest into hierarchies; and <strong>dynamic groups</strong> can define membership by query ("every thing where customer = X") so they maintain themselves off the attributes. Everything the long name would have provided — "all of customer X's devices", "command every device at site Y" — comes from groups/attributes instead, with no re-enrolment tax.</p>
+    <div class="note">
+      <span class="lab">One rule to keep</span>
+      Exactly <strong>one</strong> group owns software deployments (<code class="inline">holly-fleet</code>, as today). Deployments from multiple groups merge on a device and conflict if two groups ship the same component at different versions — so every other group is for organisation, command targeting, and dashboards only.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">8</span>Open decisions</h2>
     <table class="kv">
       <tr><td>Code location</td><td>The watchman is product code — it likely belongs in the holly repo alongside the Qt app (currently uncommitted in pc-setup, which is public). Decide before it grows.</td></tr>
-      <tr><td>Device naming</td><td>Fleet is enrolled as <code class="inline">holly-001/002/003</code>; the plan proposes <code class="inline">holly-edge-{customer}-{site}-{number}</code>. Renaming means re-enrolling — cheap at 3 devices, annoying later. Decide before the next enrolment.</td></tr>
+      <tr><td>Device naming</td><td>Adopt the convention in section 7 (names stay <code class="inline">holly-NNN</code>; customer/site live in attributes + groups)? Decide before the next enrolment — renaming later means re-enrolling.</td></tr>
       <tr><td>Local reflex</td><td>When the watchman absorbs the watchdog's schedule/restart logic: keep a minimal "restart if dead" reflex in the user session so kiosks self-heal during cloud/network outages? (Recommended: yes.)</td></tr>
       <tr><td>Prereq for 002/003</td><td>Machine-wide Python 3.12 (one command per PC — done on 001).</td></tr>
     </table>
