@@ -66,7 +66,7 @@ From a different machine (e.g. your laptop):
 
 ## Step 6 — Get the app code on and test it
 
-The app code arrives via Greengrass: a newly enrolled PC automatically pulls the fleet's current deployment (or run `./publish.sh` from your Mac to push a fresh release). Wait a few minutes, then confirm `C:\code\holly` exists on the PC.
+The app code arrives via Greengrass: a newly enrolled PC automatically pulls the fleet's current deployment (or run `./greengrass/publish.sh` from your Mac to push a fresh release). Wait a few minutes, then confirm `C:\code\holly` exists on the PC.
 
 Test it runs end-to-end: open PowerShell as `holly`, `cd C:\code\holly\projects\holly-local`, and run `uv run holly`. Close it when happy — the watchdog task (registered by setup.ps1) will launch and supervise it automatically during kiosk hours (Mon–Fri 08:30–18:00).
 
@@ -101,15 +101,15 @@ Print a label with this PC's name (e.g. `HOLLY-001`) and stick it on the bottom 
 From your Mac:
 
 ```bash
-./publish.sh          # auto-bumps the version, deploys to every PC in holly-fleet
-./publish.sh 1.4.0    # or publish an explicit version
+./greengrass/publish.sh          # auto-bumps the version, deploys to every PC in holly-fleet
+./greengrass/publish.sh 1.4.0    # or publish an explicit version
 ```
 
 Each release is a numbered Greengrass component version — PCs pull it themselves (even ones that were offline when you published), and a PC that fails a deployment rolls back to the previous working version. The watchdog script ships inside every release too, so watchdog fixes reach the whole fleet the same way.
 
 The new code lands in `C:\code\holly` immediately but is picked up when the app next starts: either the next 08:30 launch, or kill the app once over VNC and the watchdog relaunches it on the new code within seconds.
 
-There's a one-time AWS setup (artifact bucket + device read access) documented at the top of `publish.sh`.
+There's a one-time AWS setup (artifact bucket + device read access) documented at the top of `greengrass/publish.sh`.
 
 ## Final checklist
 

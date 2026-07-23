@@ -132,6 +132,14 @@
 </head>
 <body>
 
+<nav style="background:#10141C;padding:11px 22px;font-family:'JetBrains Mono','IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.04em;display:flex;gap:22px;flex-wrap:wrap;justify-content:center;">
+  <a style="color:#8A93A8;text-decoration:none;" href="./">home</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="setup-explainer.html">setup guide</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="watchman-poc.html">poc report</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="manual-tools.html">manual tools</a>
+  <a style="color:#FFFFFF;font-weight:600;text-decoration:none;" href="fleet-runbook.html">runbook</a>
+</nav>
+
 <header class="hero">
   <div class="wrap">
     <div class="kicker"><span class="dot"></span> Ops Runbook · v3 · HOLLY NUC fleet · matches the pc-setup repo</div>
@@ -215,7 +223,7 @@
 
     <div class="note">
       <span class="lab">Also in the repo — manual fallbacks</span>
-      <code class="inline">push.sh</code> — the old scp deploy loop, kept as the <strong>emergency fallback</strong> for when AWS is unreachable or one PC needs code pushed by hand (<code class="inline">./push.sh holly-002</code>). <code class="inline">ssh_script.ps1</code> — retrofits SSH onto a PC that doesn't have it (pre-§12B machines, or a Windows reinstall), which is what push.sh needs to reach it. Simple how-to for both: <a href="manual-tools.html">manual-tools.html</a>.
+      <code class="inline">push.sh</code> — the old scp deploy loop, kept as the <strong>emergency fallback</strong> for when AWS is unreachable or one PC needs code pushed by hand (<code class="inline">./tools/push.sh holly-002</code>). <code class="inline">ssh_script.ps1</code> — retrofits SSH onto a PC that doesn't have it (pre-§12B machines, or a Windows reinstall), which is what push.sh needs to reach it. Simple how-to for both: <a href="manual-tools.html">manual-tools.html</a>.
     </div>
   </section>
 
@@ -339,7 +347,7 @@ $settings = New-ScheduledTaskSettingsSet <span class="k">-ExecutionTimeLimit</sp
 Register-ScheduledTask <span class="k">-TaskName</span> <span class="s">"Holly-Watchdog"</span> `
   <span class="k">-Action</span> $action <span class="k">-Trigger</span> $trigger <span class="k">-Principal</span> $principal <span class="k">-Settings</span> $settings <span class="k">-Force</span></pre>
     </div>
-    <div class="note tip"><span class="lab">Why the settings block matters</span> Task Scheduler kills tasks after 72h by default — <code class="inline">-ExecutionTimeLimit</code> zero lets the launcher run forever, and the restart settings relaunch the launcher itself if it ever dies. To change the watchdog: edit <code class="inline">watchdog.ps1</code> in the repo and run <code class="inline">./publish.sh</code> — every PC picks it up like an app release. No SSH, no per-PC work.</div>
+    <div class="note tip"><span class="lab">Why the settings block matters</span> Task Scheduler kills tasks after 72h by default — <code class="inline">-ExecutionTimeLimit</code> zero lets the launcher run forever, and the restart settings relaunch the launcher itself if it ever dies. To change the watchdog: edit <code class="inline">watchdog.ps1</code> in the repo and run <code class="inline">./greengrass/publish.sh</code> — every PC picks it up like an app release. No SSH, no per-PC work.</div>
   </section>
 
   <!-- 6 -->
@@ -364,7 +372,7 @@ window.showFullScreen()</pre>
   <!-- 7 -->
   <section id="deploy">
     <div class="sec-head"><span class="sec-num">07</span><h2>Pushing code: publish.sh</h2></div>
-    <p>A release is <code class="inline">./publish.sh</code> from the Mac: it zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. (<code class="inline">./publish.sh 1.4.0</code> to pin a version; otherwise the patch number auto-bumps.) What that buys over the old scp loop:</p>
+    <p>A release is <code class="inline">./greengrass/publish.sh</code> from the Mac: it zips the holly source, uploads it to S3, publishes a numbered Greengrass component version, and deploys it to <code class="inline">holly-fleet</code>. (<code class="inline">./greengrass/publish.sh 1.4.0</code> to pin a version; otherwise the patch number auto-bumps.) What that buys over the old scp loop:</p>
     <table class="kv">
       <tr><td>Versioned</td><td>Every release is a numbered component version — you always know what's on which NUC.</td></tr>
       <tr><td>Auto-rollback</td><td>A device that fails a deployment reverts to the previous working version.</td></tr>
@@ -440,7 +448,7 @@ cd C:\Users\holly\Downloads
       </li>
       <li>
         <div class="st-title">Confirm the app arrived, and test it</div>
-        <p>Joining <code class="inline">holly-fleet</code> pulls the fleet's current deployment automatically — <code class="inline">C:\code\holly</code> appears within a few minutes (or run <code class="inline">./publish.sh</code> for a fresh release). Then a manual <code class="inline">uv run holly</code> in <code class="inline">C:\code\holly\projects\holly-local</code> to confirm it runs end-to-end.</p>
+        <p>Joining <code class="inline">holly-fleet</code> pulls the fleet's current deployment automatically — <code class="inline">C:\code\holly</code> appears within a few minutes (or run <code class="inline">./greengrass/publish.sh</code> for a fresh release). Then a manual <code class="inline">uv run holly</code> in <code class="inline">C:\code\holly\projects\holly-local</code> to confirm it runs end-to-end.</p>
       </li>
       <li>
         <div class="st-title">OBS + devices</div>

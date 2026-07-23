@@ -51,11 +51,19 @@
 </head>
 <body>
 
+<nav style="background:#10141C;padding:11px 22px;font-family:'JetBrains Mono','IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.04em;display:flex;gap:22px;flex-wrap:wrap;justify-content:center;">
+  <a style="color:#8A93A8;text-decoration:none;" href="./">home</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="setup-explainer.html">setup guide</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="watchman-poc.html">poc report</a>
+  <a style="color:#FFFFFF;font-weight:600;text-decoration:none;" href="manual-tools.html">manual tools</a>
+  <a style="color:#8A93A8;text-decoration:none;" href="fleet-runbook.html">runbook</a>
+</nav>
+
 <header>
   <div class="wrap">
     <div class="tag">Holly fleet · manual tools</div>
     <h1>When you need to touch one PC directly</h1>
-    <p>The normal path is AWS: code arrives on its own, <code style="font-family:'IBM Plex Mono',monospace;">./publish.sh</code> updates everything. These two tools are the manual fallbacks — for when AWS is down, a PC needs code by hand, or an old PC never got SSH. <a href="./">Back to the menu</a>.</p>
+    <p>The normal path is AWS: code arrives on its own, <code style="font-family:'IBM Plex Mono',monospace;">./greengrass/publish.sh</code> updates everything. These two tools are the manual fallbacks — for when AWS is down, a PC needs code by hand, or an old PC never got SSH. <a href="./">Back to the menu</a>.</p>
   </div>
 </header>
 
@@ -67,9 +75,9 @@
     <p>Run it <strong>on your Mac</strong>, from the pc-setup folder. It copies the holly app code straight to the PC over the tailnet using SSH:</p>
     <div class="code">
       <div class="bar"><span>Mac terminal</span><button onclick="cp(this)">Copy</button></div>
-<pre><span class="hl">./push.sh list</span>         # first: see which PCs are reachable right now
-<span class="hl">./push.sh holly-002</span>     # push to just that PC
-<span class="hl">./push.sh</span>              # push to every PC in the list</pre>
+<pre><span class="hl">./tools/push.sh list</span>         # first: see which PCs are reachable right now
+<span class="hl">./tools/push.sh holly-002</span>     # push to just that PC
+<span class="hl">./tools/push.sh</span>              # push to every PC in the list</pre>
     </div>
     <p>Three things it needs:</p>
     <ul class="plain">
@@ -83,7 +91,7 @@
   <section>
     <h2>aws_onboard.ps1 — put an older PC onto AWS</h2>
     <div class="when"><span class="lab">When to use</span> A PC that was fully set up <em>before</em> AWS was part of setup.ps1 (PCs 001–003). One run catches it up: registers the watchdog task and enrols it into Greengrass so code arrives automatically. New PCs never need this — setup.ps1 does it all.</div>
-    <p><a class="dl" href="aws_onboard.ps1" download="aws_onboard.ps1">⬇&nbsp; Download aws_onboard.ps1</a></p>
+    <p><a class="dl" href="provisioning/aws_onboard.ps1" download="aws_onboard.ps1">⬇&nbsp; Download aws_onboard.ps1</a></p>
     <p>On the PC (get the file there via this page or VNC): right-click Start → <strong>Terminal (Admin)</strong>:</p>
     <div class="code">
       <div class="bar"><span>Terminal (Admin) on the PC</span><button onclick="cp(this)">Copy</button></div>
@@ -98,7 +106,7 @@ cd C:\Users\holly\Downloads
     <h2>ssh_script.ps1 — give one PC SSH access</h2>
     <div class="when"><span class="lab">When to use</span> push.sh can't reach a PC because it has no SSH — a machine set up before SSH was part of setup.ps1, or one where Windows was reinstalled. You only ever run this once per PC. New PCs never need it.</div>
     <p>Get the script onto the PC (download it there from this site, or copy it over VNC):</p>
-    <p><a class="dl" href="ssh_script.ps1" download="ssh_script.ps1">⬇&nbsp; Download ssh_script.ps1</a></p>
+    <p><a class="dl" href="provisioning/ssh_script.ps1" download="ssh_script.ps1">⬇&nbsp; Download ssh_script.ps1</a></p>
     <p>Then on that PC: right-click Start → <strong>Terminal (Admin)</strong>, and run:</p>
     <div class="code">
       <div class="bar"><span>Terminal (Admin) on the PC</span><button onclick="cp(this)">Copy</button></div>
